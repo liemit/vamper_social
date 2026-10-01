@@ -1,0 +1,3 @@
+@echo off
+echo Starting Vamper on Chrome...
+flutter run -d chrome
