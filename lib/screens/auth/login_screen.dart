@@ -25,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  // Get AuthController
   final AuthController _authController = Get.find<AuthController>();
 
   @override
@@ -37,111 +36,119 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final success = await _authController.login(
+      await _authController.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
-      if (success) {
-        // AuthController will handle navigation to either HomeScreen or AdminDashboardScreen
-        // based on the user's role. No need to navigate here.
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 600;
+    final isDesktop = size.width >= 768;
 
-    return Obx(() => LoadingOverlay(
-      isLoading: _authController.isLoading.value,
-      message: 'Signing you in...',
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 600),
-              child: Center(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Obx(() => LoadingOverlay(
+        isLoading: _authController.isLoading.value,
+        message: 'Signing you in...',
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 24 : 20,
+                vertical: 24,
+              ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 24 : 32,
-                    vertical: 40,
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Container(
+                  padding: EdgeInsets.all(isDesktop ? 36 : 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: Form(
                     key: _formKey,
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 20),
-
-                        // Logo & Title
+                        // Logo & Header
                         FadeInDown(
-                          duration: const Duration(milliseconds: 600),
+                          duration: const Duration(milliseconds: 500),
                           child: Column(
                             children: [
-                              // Logo mới với trái tim + gradient
                               Container(
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
                                   gradient: AppColors.primaryGradient,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
                                       color: AppColors.primary.withOpacity(0.3),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 8),
                                     ),
                                   ],
                                 ),
                                 child: const Icon(
                                   Icons.favorite,
                                   color: Colors.white,
-                                  size: 40,
+                                  size: 36,
                                 ),
                               ),
-                              const SizedBox(height: 24),
-
-                              // Logo text: ❤amper
+                              const SizedBox(height: 16),
                               const VamperLogo(
-                                size: 48,
+                                size: 40,
                                 showTagline: true,
                               ),
                             ],
                           ),
                         ),
 
-                        const SizedBox(height: 48),
+                        const SizedBox(height: 32),
 
                         // Welcome text
                         FadeInLeft(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 200),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 100),
                           child: const Text(
                             'Welcome Back!',
-                            style: AppTextStyles.h1,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         FadeInLeft(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 300),
-                          child: Text(
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 150),
+                          child: const Text(
                             'Sign in to continue your journey',
-                            style: AppTextStyles.body2,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
 
                         // Email Field
                         FadeInLeft(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 400),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 200),
                           child: CustomTextField(
                             label: 'Email or Username',
                             hint: 'Enter your email or admin ID',
@@ -149,21 +156,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             keyboardType: TextInputType.emailAddress,
                             controller: _emailController,
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Please enter your email or username';
                               }
-                              // Relaxed validation to allow 'admin'
                               return null;
                             },
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 18),
 
                         // Password Field
                         FadeInLeft(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 500),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 250),
                           child: CustomTextField(
                             label: 'Password',
                             hint: 'Enter your password',
@@ -182,12 +188,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
                         // Forgot Password
                         FadeInLeft(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 600),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 300),
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -196,16 +202,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                               style: TextButton.styleFrom(
                                 foregroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(50, 30),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: const Text(
                                 'Forgot Password?',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),
@@ -216,8 +221,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Login Button
                         FadeInUp(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 700),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 350),
                           child: Obx(() => GradientButton(
                             text: 'Sign In',
                             onPressed: _handleLogin,
@@ -227,45 +232,46 @@ class _LoginScreenState extends State<LoginScreen> {
                           )),
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
                         // Divider
                         FadeInUp(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 800),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 400),
                           child: Row(
                             children: [
                               const Expanded(
                                 child: Divider(
                                   color: AppColors.border,
-                                  thickness: 1.5,
+                                  thickness: 1.2,
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
                                 child: Text(
                                   'Or continue with',
-                                  style: AppTextStyles.caption.copyWith(
-                                    fontSize: 13,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textLight,
                                   ),
                                 ),
                               ),
                               const Expanded(
                                 child: Divider(
                                   color: AppColors.border,
-                                  thickness: 1.5,
+                                  thickness: 1.2,
                                 ),
                               ),
                             ],
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         // Social Buttons
                         FadeInUp(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 900),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 450),
                           child: Row(
                             children: [
                               Expanded(
@@ -273,9 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   text: 'Google',
                                   icon: FontAwesomeIcons.google,
                                   color: AppColors.google,
-                                  onPressed: () {
-                                    // TODO: Google sign in
-                                  },
+                                  onPressed: () {},
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -284,27 +288,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                   text: 'Facebook',
                                   icon: FontAwesomeIcons.facebookF,
                                   color: AppColors.facebook,
-                                  onPressed: () {
-                                    // TODO: Facebook sign in
-                                  },
+                                  onPressed: () {},
                                 ),
                               ),
                             ],
                           ),
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
                         // Register Link
                         FadeInUp(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 1000),
+                          duration: const Duration(milliseconds: 500),
+                          delay: const Duration(milliseconds: 500),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
+                              const Text(
                                 "Don't have an account? ",
-                                style: AppTextStyles.body2,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                               TextButton(
                                 onPressed: () {
@@ -317,23 +322,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                                 style: TextButton.styleFrom(
                                   foregroundColor: AppColors.primary,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(50, 30),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 child: const Text(
                                   'Sign Up',
                                   style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -342,7 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    )));
+      )),
+    );
   }
 }
