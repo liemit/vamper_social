@@ -13,7 +13,7 @@ class ApiConstants {
       return '/vamper_api/api';
     }
     // Cho máy thật / Emulator qua Ngrok
-    return 'https://d49f-2401-d800-2f6-4490-e536-46db-225f-90a7.ngrok-free.app/vamper_api/api';
+    return 'https://postconquest-jurisprudentially-rebbecca.ngrok-free.dev/vamper_api/api';
   }
   
   // Public URL cho Web Portal (Nếu có)
