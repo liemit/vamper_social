@@ -44,6 +44,7 @@ class ApiConstants {
   static const Map<String, String> headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   };
   
   // Storage keys
