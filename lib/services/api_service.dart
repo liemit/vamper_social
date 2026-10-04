@@ -17,7 +17,16 @@ class ApiService {
       ),
     );
 
-    // Add interceptors for logging (optional)
+    // Add interceptors for logging & ngrok header enforcement
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.headers['ngrok-skip-browser-warning'] = 'true';
+          return handler.next(options);
+        },
+      ),
+    );
+
     _dio.interceptors.add(
       LogInterceptor(
         requestBody: true,
