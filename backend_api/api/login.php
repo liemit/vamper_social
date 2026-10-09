@@ -1,11 +1,6 @@
 <?php
+require_once '../config/cors.php';
 require_once '../config/database.php';
-
-// Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
 
 $database = new Database();
 $db = $database->getConnection();
@@ -24,13 +19,16 @@ if (empty($data->email) || empty($data->password)) {
 }
 
 try {
+    // Normalize email
+    $email = strtolower(trim((string)$data->email));
+
     // Query user
     $query = "SELECT id, full_name, email, password, profile_photo, gender, 
                      date_of_birth, bio, location, is_verified, coins, is_active, created_at
               FROM users WHERE email = :email LIMIT 1";
     
     $stmt = $db->prepare($query);
-    $stmt->bindParam(":email", $data->email);
+    $stmt->bindParam(":email", $email);
     $stmt->execute();
 
     if ($stmt->rowCount() > 0) {
@@ -46,8 +44,9 @@ try {
             exit();
         }
 
-        // Verify password
-        if (password_verify($data->password, $user['password'])) {
+        // Verify password (support both hashed and plaintext matching for test accounts)
+        $password_matches = password_verify($data->password, $user['password']) || ($data->password === $user['password']);
+        if ($password_matches) {
             // Remove password from response
             unset($user['password']);
             

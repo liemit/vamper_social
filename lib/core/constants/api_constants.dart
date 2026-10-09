@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
-  // Base URL cho Server PHP trên ổ D (Laragon)
+  // Base URL cho Server PHP trên ổ D (Laragon) qua tên miền riêng vamper.xyz
   static String get baseUrl {
     if (kIsWeb) {
       final String origin = Uri.base.origin;
@@ -12,12 +12,12 @@ class ApiConstants {
       // Khi đã deploy lên cùng server
       return '/vamper_api/api';
     }
-    // Cho máy thật / Emulator qua Ngrok
-    return 'https://postconquest-jurisprudentially-rebbecca.ngrok-free.dev/vamper_api/api';
+    // Cho máy thật / Emulator qua Cloudflare Tunnel (vamper.xyz)
+    return 'https://vamper.xyz/vamper_api/api';
   }
   
-  // Public URL cho Web Portal (Nếu có)
-  static String get webAdminUrl => 'http://localhost/vamper_api/api/admin/login.php'; 
+  // Public URL cho Web Portal (Admin)
+  static String get webAdminUrl => 'https://vamper.xyz/vamper_api/admin.php'; 
   
   // Endpoints - Sử dụng đuôi .php cho backend PHP thuần
   static String get test => '$baseUrl/test.php';
@@ -27,6 +27,7 @@ class ApiConstants {
   static String get verifyOtp => '$baseUrl/verify-otp.php';
   static String get getProfile => '$baseUrl/get-profile.php';
   static String get updateProfile => '$baseUrl/update-profile.php';
+  static String get uploadProfileFolder => '$baseUrl/upload-photo.php';
   static String get uploadProfilePhoto => '$baseUrl/upload-photo.php';
   static String get getUserPhotos => '$baseUrl/get-user-photos.php';
   
@@ -44,7 +45,6 @@ class ApiConstants {
   static const Map<String, String> headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'ngrok-skip-browser-warning': 'true',
   };
   
   // Storage keys

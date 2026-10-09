@@ -1,12 +1,7 @@
 <?php
+require_once '../config/cors.php';
 require_once '../config/database.php';
 require_once '../libs/EmailSender.php';
-
-// Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
 
 $database = new Database();
 $db = $database->getConnection();
