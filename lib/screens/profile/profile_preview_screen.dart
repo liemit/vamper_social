@@ -8,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../widgets/post_card.dart';
 import '../home/home_screen.dart';
+import '../chat/chat_screen.dart';
+import '../../models/conversation_model.dart';
 
 class ProfilePreviewScreen extends StatefulWidget {
   final String userId;
@@ -316,7 +318,19 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                       child: IconButton(
                         icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                         onPressed: () {
-                          // TODO: Open direct chat
+                          final conversation = ConversationModel(
+                            conversationId: 0,
+                            partnerId: user.id,
+                            partnerName: user.fullName,
+                            partnerPhoto: user.profilePhoto,
+                            partnerGender: user.gender ?? 'other',
+                            partnerAge: user.age ?? 20,
+                            partnerVerified: user.isVerified,
+                            lastMessage: 'Say hi 👋',
+                            unreadCount: 0,
+                            updatedAt: DateTime.now(),
+                          );
+                          Get.to(() => ChatScreen(conversation: conversation));
                         },
                       ),
                     ),

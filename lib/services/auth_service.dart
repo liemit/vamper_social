@@ -25,7 +25,7 @@ class AuthService {
       );
 
       if (response.data['success'] == true) {
-        await _saveAuthData(
+        await saveAuthData(
           response.data['data']['token'],
           response.data['data']['user'],
         );
@@ -53,7 +53,7 @@ class AuthService {
       );
 
       if (response.data['success'] == true) {
-        await _saveAuthData(
+        await saveAuthData(
           response.data['data']['token'],
           response.data['data']['user'],
         );
@@ -88,7 +88,7 @@ class AuthService {
         data: {'email': email, 'otp_code': otpCode},
       );
       if (response.data['success'] == true) {
-        await _saveAuthData(response.data['data']['token'], response.data['data']['user']);
+        await saveAuthData(response.data['data']['token'], response.data['data']['user']);
         return response.data;
       }
       throw response.data['message'] ?? 'Invalid OTP';
@@ -219,7 +219,7 @@ class AuthService {
 
   // --- Helper Methods ---
 
-  Future<void> _saveAuthData(String token, Map<String, dynamic> userData) async {
+  Future<void> saveAuthData(String token, Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(ApiConstants.keyToken, token);
     await prefs.setString(ApiConstants.keyUserId, userData['id'].toString());

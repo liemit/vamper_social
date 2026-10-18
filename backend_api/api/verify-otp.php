@@ -1,11 +1,6 @@
 <?php
+require_once '../config/cors.php';
 require_once '../config/database.php';
-
-// Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
 
 $database = new Database();
 $db = $database->getConnection();
@@ -42,7 +37,6 @@ $otp_normalized = sprintf("%06d", (int)$otp_from_user);
 
 try {
     // Check for valid, unused, and non-expired OTP
-    // We fetch the most recent unused OTP for this email
     $query = "SELECT id, otp_code, is_used, expires_at
               FROM otp_codes 
               WHERE email = :email 
@@ -68,10 +62,8 @@ try {
     }
 
     if (!$is_match) {
-        // Debug info if requested or in dev
         $debug_info = "Verification failed. ";
 
-        // Optional: check if email exists at all
         $stmt_check = $db->prepare("SELECT id FROM users WHERE email = :email LIMIT 1");
         $stmt_check->bindParam(":email", $email);
         $stmt_check->execute();
@@ -111,17 +103,16 @@ try {
         $stmt_user2->execute();
     }
 
-    // Bước 4: Get updated user data (tự xử lý nếu cột nào không tồn tại)
+    // Bước 4: Get updated user data
     try {
         $stmt_final = $db->prepare("SELECT id, full_name, email, profile_photo, is_verified, created_at FROM users WHERE email = :email LIMIT 1");
     } catch (PDOException $e_sel) {
         $stmt_final = $db->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
     }
-    $stmt_final->bindParam(":email", $data->email);
+    $stmt_final->bindParam(":email", $email);
     $stmt_final->execute();
     $user = $stmt_final->fetch(PDO::FETCH_ASSOC);
 
-    // Thêm email_verified = 1 vào user để frontend tin rằng đã verify (dù DB có cột hay không)
     if (!isset($user['email_verified'])) $user['email_verified'] = 1;
     if (!isset($user['is_verified']))    $user['is_verified'] = 1;
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 import '../app/theme/app_colors.dart';
 import '../core/constants/api_constants.dart';
@@ -8,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/onboarding/complete_profile_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -185,6 +187,124 @@ class AuthController extends GetxController {
       Get.snackbar(
         'Error',
         e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Native Google Account Selector Login
+  Future<bool> loginWithGoogle() async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: '752772790267-skf4vk0n9o5bqdn4d3toudnt83fgs566.apps.googleusercontent.com',
+        scopes: ['email', 'profile'],
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        isLoading.value = false;
+        return false; // User canceled selector
+      }
+
+      return await loginWithSocial(
+        provider: 'google',
+        email: googleUser.email,
+        fullName: googleUser.displayName ?? 'Google User',
+        photoUrl: googleUser.photoUrl,
+        socialId: googleUser.id,
+      );
+    } catch (e) {
+      print('Google Native Sign-In Error: $e');
+      errorMessage.value = e.toString();
+      Get.snackbar(
+        'Google Sign-In Required',
+        'Official Google Sign-In requires a Google OAuth Client ID configured in Google Cloud Console.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+      );
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Social Login (Google / Facebook)
+  Future<bool> loginWithSocial({
+    required String provider,
+    String? email,
+    String? fullName,
+    String? photoUrl,
+    String? socialId,
+  }) async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final targetEmail = (email != null && email.trim().isNotEmpty)
+          ? email.trim().toLowerCase()
+          : '${provider}_user_${DateTime.now().millisecondsSinceEpoch % 100000}@gmail.com';
+      final targetName = (fullName != null && fullName.trim().isNotEmpty)
+          ? fullName.trim()
+          : '${provider.capitalizeFirst} User';
+
+      final response = await apiService.post(
+        ApiConstants.socialLogin,
+        data: {
+          'provider': provider,
+          'email': targetEmail,
+          'full_name': targetName,
+          'social_id': socialId ?? 'social_${DateTime.now().millisecondsSinceEpoch}',
+          if (photoUrl != null) 'photo_url': photoUrl,
+        },
+      );
+
+      if (response.data['success'] == true) {
+        final userData = UserModel.fromJson(response.data['data']['user']);
+        currentUser.value = userData;
+        isLoggedIn.value = true;
+
+        final bool isNewUser = response.data['is_new_user'] == true;
+
+        Get.snackbar(
+          'Welcome to Vamper! 🎉',
+          isNewUser ? 'Please complete your profile to get started!' : 'Signed in via ${provider.capitalizeFirst}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success,
+          colorText: Colors.white,
+        );
+
+        if (isNewUser) {
+          Get.offAll(() => CompleteProfileScreen(userId: userData.id, fullName: userData.fullName));
+        } else {
+          Get.offAllNamed('/home');
+        }
+        return true;
+      } else {
+        errorMessage.value = response.data['message'] ?? 'Social login failed';
+        Get.snackbar(
+          'Social Login Error',
+          errorMessage.value,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: Colors.white,
+        );
+        return false;
+      }
+    } catch (e) {
+      errorMessage.value = e.toString();
+      Get.snackbar(
+        'Error',
+        'Social sign-in failed: $e',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.error,
         colorText: Colors.white,
@@ -403,6 +523,50 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Verify and Recharge Payment
+  Future<bool> verifyAndRechargePayment(int coins, double price, String paymentToken) async {
+    final user = currentUser.value;
+    if (user == null) return false;
+
+    try {
+      isLoading.value = true;
+      final response = await apiService.post(
+        '${ApiConstants.baseUrl}/verify-paypal-payment.php',
+        data: {
+          'user_id': user.id,
+          'coins': coins,
+          'amount_usd': price,
+          'payment_token': paymentToken,
+        },
+      );
+
+      if (response.data['success'] == true) {
+        currentUser.value = UserModel.fromJson(response.data['data']['user']);
+        Get.snackbar(
+          'Payment Verified & Credited! 🎉',
+          response.data['message'] ?? 'Successfully added $coins coins!',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success,
+          colorText: Colors.white,
+        );
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error verifying payment: $e');
+      Get.snackbar(
+        'Verification Failed',
+        'Could not verify payment token.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       isLoading.value = false;

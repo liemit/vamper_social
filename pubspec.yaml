@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   
+  # Social Sign-In
+  google_sign_in: ^6.2.2
+  
   # Animations
   animate_do: ^3.3.4
   

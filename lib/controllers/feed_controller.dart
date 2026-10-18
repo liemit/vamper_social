@@ -181,7 +181,7 @@ class FeedController extends GetxController {
       }
 
       final response = await _apiService.post(
-        '$postId/update',
+        ApiConstants.updatePost,
         data: formData,
       );
 
@@ -231,8 +231,8 @@ class FeedController extends GetxController {
       if (userId == null) return false;
 
       final response = await _apiService.post(
-        '${ApiConstants.baseUrl}/posts/$postId/delete',
-        data: {'user_id': userId},
+        ApiConstants.deletePost,
+        data: {'user_id': userId, 'post_id': postId},
       );
 
       if (response.data['success'] == true) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:get/get.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:share_plus/share_plus.dart';
@@ -187,9 +188,27 @@ class PostCard extends StatelessWidget {
           actions: [
             TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
             TextButton(
-              onPressed: () {
-                controller.deletePost(post.id);
-                Get.back();
+              onPressed: () async {
+                Get.back(); // close dialog
+                final success = await controller.deletePost(post.id);
+                if (success) {
+                  Get.snackbar(
+                    'Success',
+                    'Post deleted successfully!',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.green,
+                    colorText: Colors.white,
+                  );
+                  controller.fetchPosts(); // refresh list
+                } else {
+                  Get.snackbar(
+                    'Error',
+                    'Failed to delete post. Please try again.',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
+                }
               },
               child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
@@ -297,16 +316,23 @@ class _ImageCarouselState extends State<_ImageCarousel> {
       children: [
         SizedBox(
           height: 300,
-          child: PageView.builder(
-            controller: _pageController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: widget.photos.length,
-            onPageChanged: (index) => setState(() => _currentPage = index),
-            itemBuilder: (context, index) {
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+            child: PageView.builder(
+              controller: _pageController,
+              physics: const BouncingScrollPhysics(),
+              itemCount: widget.photos.length,
+              onPageChanged: (index) => setState(() => _currentPage = index),
+              itemBuilder: (context, index) {
               final photo = widget.photos[index];
               final url = widget.authController.getFullImageUrl(photo.url);
               return GestureDetector(
-                behavior: HitTestBehavior.opaque,
                 onTap: () => url != null ? widget.authController.showImageDetail(url) : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -340,6 +366,7 @@ class _ImageCarouselState extends State<_ImageCarousel> {
             },
           ),
         ),
+      ),
         if (widget.photos.length > 1)
           Padding(
             padding: const EdgeInsets.only(top: 8),

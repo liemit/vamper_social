@@ -16,6 +16,8 @@ import '../auth/login_screen.dart';
 import 'create_post_screen.dart';
 import 'swipe_cards_screen.dart';
 import '../wallet/coin_shop_screen.dart';
+import '../discovery/search_screen.dart';
+import '../chat/conversations_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     const DiscoveryTab(),
     const MatchesTab(),
-    const MessagesTab(),
+    const ConversationsScreen(),
     const ProfileTab(),
   ];
 
@@ -88,7 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           }),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.search, color: AppColors.textPrimary),
+            onPressed: () => Get.to(() => const SearchScreen()),
+          ),
           IconButton(
             icon: const Icon(Icons.tune, color: AppColors.textPrimary),
             onPressed: () => _showFilterSheet(context),
@@ -355,7 +361,7 @@ class MatchesTab extends StatelessWidget {
                 label: 'Lover Card',
                 icon: Icons.auto_awesome_motion_rounded,
                 color: const Color(0xFFFDCB6E),
-                onTap: () {},
+                onTap: () => Get.to(() => const SwipeCardsScreen()),
               ),
             ],
           ),

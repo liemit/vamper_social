@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: localhost:3306
--- Thời gian đã tạo: Th9 27, 2026 lúc 08:20 AM
+-- Thời gian đã tạo: Th10 11, 2026 lúc 05:36 AM
 -- Phiên bản máy phục vụ: 8.0.30
 -- Phiên bản PHP: 8.1.10
 
@@ -33,6 +33,20 @@ CREATE TABLE `comment_interactions` (
   `user_id` int NOT NULL,
   `interaction_type` enum('like','dislike') COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `conversations`
+--
+
+CREATE TABLE `conversations` (
+  `id` int NOT NULL,
+  `user1_id` int NOT NULL,
+  `user2_id` int NOT NULL,
+  `last_message` text COLLATE utf8mb4_unicode_ci,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -179,7 +193,7 @@ CREATE TABLE `otp_codes` (
   `email` varchar(255) NOT NULL,
   `otp_code` varchar(6) NOT NULL,
   `expires_at` datetime NOT NULL,
-  `is_used` tinyint(1) DEFAULT '0',
+  `is_used` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -219,16 +233,14 @@ CREATE TABLE `posts` (
 --
 
 INSERT INTO `posts` (`id`, `user_id`, `content`, `image_url`, `status`, `created_at`, `updated_at`) VALUES
-(4, 15, 'Hello World !', NULL, 1, '2026-09-13 18:11:43', '2026-09-17 09:30:01'),
-(5, 15, '110cm :)))', NULL, 1, '2026-09-17 09:28:28', '2026-09-17 09:28:43'),
 (1001, 101, 'Hôm nay trời đẹp quá, có ai đi cafe với mình không? ☕️ #hanoi #cafe', NULL, 1, '2026-09-17 01:30:00', '2026-09-17 14:14:39'),
 (1002, 102, 'Vừa hoàn thành buổi tập sáng, cảm thấy tràn đầy năng lượng! 💪 #gym #fitness', NULL, 1, '2026-09-17 02:15:00', '2026-09-17 14:14:39'),
 (1003, 103, 'Đà Nẵng mùa này biển đẹp lắm mọi người ơi 🌊 #danang #beach', NULL, 1, '2026-09-16 13:00:00', '2026-09-17 14:14:39'),
-(1004, 108, 'Góc nhỏ bình yên tại Đà Lạt 🌲 #dalat #chill', NULL, 1, '2026-09-17 03:45:00', '2026-09-17 14:14:39'),
 (1005, 105, 'Nấu ăn là cách mình thư giãn sau một ngày làm việc 🍳 #cooking #home', NULL, 1, '2026-09-17 05:00:00', '2026-09-17 14:14:39'),
 (1006, 107, 'Tiệc tối cuối tuần cùng hội bạn thân! 🎉 #saigon #party', NULL, 1, '2026-09-15 15:30:00', '2026-09-17 14:14:39'),
 (1007, 104, 'Có ai tin vào định mệnh không? #love #soulmate', NULL, 1, '2026-09-17 07:20:00', '2026-09-17 14:14:39'),
-(1008, 101, 'Mới tậu được bộ váy xinh quá 👗 #fashion #shopping', NULL, 1, '2026-09-17 09:10:00', '2026-09-17 14:14:39');
+(1011, 15, 'tìm kiếm anh trai dập cỡ này :))', NULL, 1, '2026-10-09 03:14:04', '2026-10-09 13:02:39'),
+(1021, 15, 'Đây là cây quạt điều hòa cao 1m90 !', NULL, 0, '2026-10-09 08:47:16', '2026-10-09 13:02:03');
 
 -- --------------------------------------------------------
 
@@ -250,9 +262,6 @@ CREATE TABLE `post_comments` (
 --
 
 INSERT INTO `post_comments` (`id`, `post_id`, `user_id`, `parent_id`, `comment`, `created_at`) VALUES
-(4, 5, 15, NULL, 'Yohhhhh', '2026-09-17 09:29:03'),
-(5, 5, 15, NULL, '.', '2026-09-17 13:26:33'),
-(6, 4, 15, NULL, 'mê vc ấy :))', '2026-09-17 13:27:42'),
 (7, 1001, 102, NULL, 'Đi đâu thế cho mình ké với? 😉', '2026-09-17 01:35:00'),
 (8, 1001, 101, NULL, 'Quán ở Hồ Tây nha bạn!', '2026-09-17 01:40:00'),
 (9, 1002, 101, NULL, 'Chăm chỉ quá anh ơi 👏', '2026-09-17 02:20:00'),
@@ -308,7 +317,8 @@ INSERT INTO `post_likes` (`id`, `post_id`, `user_id`, `created_at`) VALUES
 (11, 1007, 101, '2026-09-17 14:14:40'),
 (12, 1007, 103, '2026-09-17 14:14:40'),
 (13, 1007, 105, '2026-09-17 14:14:40'),
-(14, 1007, 107, '2026-09-17 14:14:40');
+(14, 1007, 107, '2026-09-17 14:14:40'),
+(15, 1021, 15, '2026-10-09 09:28:24');
 
 -- --------------------------------------------------------
 
@@ -331,31 +341,102 @@ CREATE TABLE `post_photos` (
 --
 
 INSERT INTO `post_photos` (`id`, `post_id`, `photo_url`, `created_at`, `alignment_x`, `alignment_y`, `scale`) VALUES
-(1, 4, 'uploads/posts/post_15_6aa6e75f37614_0.jpg', '2026-09-13 18:11:43', 0.0000, 0.0000, 1.00),
-(2, 4, 'uploads/posts/post_15_6aa6e75f3f8d0_1.jpg', '2026-09-13 18:11:43', 0.0000, 0.0000, 1.00),
-(3, 4, 'uploads/posts/post_15_6aa6e75f40c50_2.jpg', '2026-09-13 18:11:43', 0.0000, 0.0000, 1.00),
-(4, 4, 'uploads/posts/post_15_6aa6e75f41a3b_3.jpg', '2026-09-13 18:11:43', 0.0000, 0.0000, 1.00),
-(5, 4, 'uploads/posts/post_15_6aa6e75f42e41_4.jpg', '2026-09-13 18:11:43', 0.0000, 0.0000, 1.00),
-(6, 4, 'uploads/posts/post_15_6aa6e75f44639_5.jpg', '2026-09-13 18:11:43', 0.0000, 0.0000, 1.00),
-(7, 4, 'uploads/posts/post_15_6aa6e7b85b93e_upd_0.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(8, 4, 'uploads/posts/post_15_6aa6e7b85d953_upd_1.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(9, 4, 'uploads/posts/post_15_6aa6e7b85e6f9_upd_2.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(10, 4, 'uploads/posts/post_15_6aa6e7b85f444_upd_3.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(11, 4, 'uploads/posts/post_15_6aa6e7b860705_upd_4.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(12, 4, 'uploads/posts/post_15_6aa6e7b8612ca_upd_5.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(13, 4, 'uploads/posts/post_15_6aa6e7b862081_upd_6.webp', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(14, 4, 'uploads/posts/post_15_6aa6e7b862cd4_upd_7.jpg', '2026-09-13 18:13:12', 0.0000, 0.0000, 1.00),
-(15, 4, 'uploads/posts/post_15_6aa6e7b863a5b_upd_8.png', '2026-09-13 18:13:12', -0.7965, 0.3711, 1.35),
-(16, 5, 'uploads/posts/post_15_6aabb2bcd86d8_0.jpg', '2026-09-17 09:28:28', -0.7100, -0.0500, 1.00),
 (17, 1001, 'uploads/posts/demo_p1_1.jpg', '2026-09-17 14:14:40', 0.0000, -0.5000, 1.20),
 (18, 1002, 'uploads/posts/demo_p2_1.jpg', '2026-09-17 14:14:40', 0.0000, 0.2000, 1.00),
 (19, 1003, 'uploads/posts/demo_p3_1.jpg', '2026-09-17 14:14:40', 0.5000, 0.0000, 1.50),
-(20, 1004, 'uploads/posts/demo_p4_1.jpg', '2026-09-17 14:14:40', 0.0000, 0.0000, 1.00),
 (21, 1005, 'uploads/posts/demo_p5_1.jpg', '2026-09-17 14:14:40', 0.0000, 0.0000, 1.10),
 (22, 1006, 'uploads/posts/demo_p6_1.jpg', '2026-09-17 14:14:40', 0.0000, 0.0000, 1.00),
 (23, 1006, 'uploads/posts/demo_p6_2.jpg', '2026-09-17 14:14:40', 0.0000, 0.0000, 1.00),
 (24, 1007, 'uploads/posts/demo_p7_1.jpg', '2026-09-17 14:14:40', 0.0000, -0.8000, 2.00),
-(25, 1008, 'uploads/posts/demo_p8_1.jpg', '2026-09-17 14:14:40', 0.0000, 0.5000, 1.00);
+(38, 1021, 'uploads/posts/post_15_6ac8e5cb97015_upd_0.webp', '2026-10-09 13:02:03', 0.0000, 0.0000, 1.00),
+(39, 1021, 'uploads/posts/post_15_6ac8e5cb99b9e_upd_1.jpg', '2026-10-09 13:02:03', 0.0000, 0.0000, 1.00),
+(40, 1021, 'uploads/posts/post_15_6ac8e5cb9ae6d_upd_2.png', '2026-10-09 13:02:03', 0.0000, 0.0000, 1.00),
+(41, 1011, 'uploads/posts/post_15_6ac8e5efcd824_upd_0.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
+(42, 1011, 'uploads/posts/post_15_6ac8e5efcf9cc_upd_1.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
+(43, 1011, 'uploads/posts/post_15_6ac8e5efd1d85_upd_2.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
+(44, 1011, 'uploads/posts/post_15_6ac8e5efd3290_upd_3.png', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
+(45, 1011, 'uploads/posts/post_15_6ac8e5efd5f37_upd_4.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00);
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `reports`
+--
+
+CREATE TABLE `reports` (
+  `id` int NOT NULL,
+  `reporter_id` int NOT NULL,
+  `target_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'post',
+  `target_id` int NOT NULL,
+  `reason` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `reports`
+--
+
+INSERT INTO `reports` (`id`, `reporter_id`, `target_type`, `target_id`, `reason`, `description`, `status`, `created_at`) VALUES
+(1, 15, 'post', 5, 'Spam', '', 'dismissed', '2026-09-27 09:42:21');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `settings`
+--
+
+CREATE TABLE `settings` (
+  `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` text COLLATE utf8mb4_unicode_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `settings`
+--
+
+INSERT INTO `settings` (`key`, `value`) VALUES
+('paypal_email', 'liembaber00@gmail.com'),
+('paypal_mode', 'sandbox');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `soul_matches`
+--
+
+CREATE TABLE `soul_matches` (
+  `id` int NOT NULL,
+  `user1_id` int NOT NULL,
+  `user2_id` int NOT NULL,
+  `status` int DEFAULT '0' COMMENT '0: pending/chatting, 1: liked, 2: passed, 3: mutual_matched',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `transactions`
+--
+
+CREATE TABLE `transactions` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `amount_usd` decimal(10,2) NOT NULL,
+  `coins` int NOT NULL,
+  `gateway` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'PayPal',
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'completed',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `transactions`
+--
+
+INSERT INTO `transactions` (`id`, `user_id`, `amount_usd`, `coins`, `gateway`, `status`, `created_at`) VALUES
+(1, 15, 4.99, 100, 'PayPal', 'completed', '2026-09-29 13:30:05'),
+(2, 15, 4.99, 100, 'PayPal', 'completed', '2026-10-09 02:34:18');
 
 -- --------------------------------------------------------
 
@@ -377,7 +458,8 @@ CREATE TABLE `users` (
   `location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `latitude` decimal(10,8) DEFAULT NULL,
   `longitude` decimal(11,8) DEFAULT NULL,
-  `is_verified` tinyint(1) DEFAULT '0',
+  `is_verified` tinyint(1) NOT NULL DEFAULT '0',
+  `email_verified` tinyint(1) NOT NULL DEFAULT '0',
   `coins` int DEFAULT '10',
   `is_active` tinyint(1) DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -388,19 +470,21 @@ CREATE TABLE `users` (
 -- Đang đổ dữ liệu cho bảng `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `email`, `role`, `password`, `phone`, `gender`, `date_of_birth`, `bio`, `profile_photo`, `location`, `latitude`, `longitude`, `is_verified`, `coins`, `is_active`, `created_at`, `updated_at`) VALUES
-(14, 'homafim', 'homafim948@robustq.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', '', 'male', '2002-01-14', '1m83', 'uploads/profile_photos/profile_14_1788279438.png', 'Kim Boi, Phu Tho', NULL, NULL, 1, 10, 1, '2026-09-01 04:41:28', '2026-09-02 06:14:51'),
-(15, 'dilewor406', 'dilewor406@slotbeer.com', 'user', '$2y$10$4W44WaJwuV./iTzg2B31Gev6TJRbz5sDDp2eik0st0XP8s9885giS', '0359750304', 'male', '2000-01-12', 'buy8oh89h9', 'uploads/profile_photos/profile_15_1789283211.png', 'Kim Bảng, Lê Hồ, Ninh Bình', NULL, NULL, 1, 10, 1, '2026-09-01 05:25:57', '2026-09-27 07:13:10'),
-(16, 'yesid63528', 'yesid63528@robustq.com', 'user', '$2y$10$1dELgT9dAW83Empi/rkGrutz/BpjinHKTKyrXdAWquOhYOXv0R7iC', '', NULL, NULL, '', 'uploads/profile_photos/profile_16_1788279528.jpg', '', NULL, NULL, 0, 10, 1, '2026-09-01 10:20:44', '2026-09-27 08:16:38'),
-(101, 'Linh Angel', 'linh.angel@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2002-05-20', 'Yêu màu hồng, ghét sự giả dối ✨', 'uploads/profile_photos/demo_1.jpg', 'Hà Nội', NULL, NULL, 1, 50, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(102, 'Minh Tuấn', 'tuan.minh@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1998-11-12', 'Gym, Coffee and Coding ☕️💪', 'uploads/profile_photos/demo_2.jpg', 'TP. Hồ Chí Minh', NULL, NULL, 1, 20, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(103, 'Khánh Vy', 'vy.khanh@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2004-01-15', 'Gen Z chính hiệu, thích đi du lịch ✈️', 'uploads/profile_photos/demo_3.jpg', 'Đà Nẵng', NULL, NULL, 0, 10, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(104, 'Hoàng Long', 'long.hoang@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1995-07-08', 'Thích tìm hiểu về tâm lý học và vũ trụ 🌌', 'uploads/profile_photos/demo_4.jpg', 'Hải Phòng', NULL, NULL, 1, 100, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(105, 'Thủy Tiên', 'tien.thuy@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2000-03-25', 'Tìm kiếm một mối quan hệ nghiêm túc ❤️', 'uploads/profile_photos/demo_5.jpg', 'Cần Thơ', NULL, NULL, 1, 30, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(106, 'Đức Anh', 'anh.duc@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1999-09-09', 'Chàng trai hướng nội, yêu mèo 🐈', 'uploads/profile_photos/demo_6.jpg', 'Hà Nội', NULL, NULL, 0, 15, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(107, 'Bảo Ngọc', 'ngoc.bao@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2001-12-30', 'Work hard, play hard! 💃', 'uploads/profile_photos/demo_7.jpg', 'TP. Hồ Chí Minh', NULL, NULL, 1, 45, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(108, 'Quốc Huy', 'huy.quoc@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '2003-02-14', 'Nhiếp ảnh gia nghiệp dư 📸', 'uploads/profile_photos/demo_8.jpg', 'Đà Lạt', NULL, NULL, 1, 10, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(113, 'Vamper Boss', 'admin@gmail.com', 'admin', '$2y$10$oWV64BK2riYgSRgCg.Vw2eTWCTlfcAG3os9mwiRS2vYfseNY8fgNu', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 999, 1, '2026-09-17 17:00:47', '2026-09-27 06:11:43');
+INSERT INTO `users` (`id`, `full_name`, `email`, `role`, `password`, `phone`, `gender`, `date_of_birth`, `bio`, `profile_photo`, `location`, `latitude`, `longitude`, `is_verified`, `email_verified`, `coins`, `is_active`, `created_at`, `updated_at`) VALUES
+(14, 'homafim', 'homafim948@robustq.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', '', 'male', '2002-01-14', '1m83', 'uploads/profile_photos/profile_14_1788279438.png', 'Kim Boi, Phu Tho', NULL, NULL, 1, 0, 10, 1, '2026-09-01 04:41:28', '2026-09-02 06:14:51'),
+(15, 'dilewor406', 'dilewor406@slotbeer.com', 'user', '$2y$10$4W44WaJwuV./iTzg2B31Gev6TJRbz5sDDp2eik0st0XP8s9885giS', '0359750304', 'male', '2000-01-12', 'buy8oh89h9', 'uploads/profile_photos/profile_15_1789283211.png', 'Kim Bảng, Lê Hồ, Ninh Bình', NULL, NULL, 1, 0, 810, 1, '2026-09-01 05:25:57', '2026-10-10 16:20:44'),
+(16, 'yesid63528', 'yesid63528@robustq.com', 'user', '$2y$10$1dELgT9dAW83Empi/rkGrutz/BpjinHKTKyrXdAWquOhYOXv0R7iC', '', NULL, NULL, '', 'uploads/profile_photos/profile_16_1788279528.jpg', '', NULL, NULL, 0, 0, 10, 1, '2026-09-01 10:20:44', '2026-10-09 09:25:52'),
+(101, 'Linh Angel', 'linh.angel@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2002-05-20', 'Yêu màu hồng, ghét sự giả dối ✨', 'uploads/profile_photos/demo_1.jpg', 'Hà Nội', NULL, NULL, 1, 0, 50, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(102, 'Minh Tuấn', 'tuan.minh@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1998-11-12', 'Gym, Coffee and Coding ☕️💪', 'uploads/profile_photos/demo_2.jpg', 'TP. Hồ Chí Minh', NULL, NULL, 1, 0, 20, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(103, 'Khánh Vy', 'vy.khanh@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2004-01-15', 'Gen Z chính hiệu, thích đi du lịch ✈️', 'uploads/profile_photos/demo_3.jpg', 'Đà Nẵng', NULL, NULL, 0, 0, 10, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(104, 'Hoàng Long', 'long.hoang@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1995-07-08', 'Thích tìm hiểu về tâm lý học và vũ trụ 🌌', 'uploads/profile_photos/demo_4.jpg', 'Hải Phòng', NULL, NULL, 1, 0, 100, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(105, 'Thủy Tiên', 'tien.thuy@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2000-03-25', 'Tìm kiếm một mối quan hệ nghiêm túc ❤️', 'uploads/profile_photos/demo_5.jpg', 'Cần Thơ', NULL, NULL, 1, 0, 30, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(106, 'Đức Anh', 'anh.duc@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1999-09-09', 'Chàng trai hướng nội, yêu mèo 🐈', 'uploads/profile_photos/demo_6.jpg', 'Hà Nội', NULL, NULL, 0, 0, 15, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(107, 'Bảo Ngọc', 'ngoc.bao@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2001-12-30', 'Work hard, play hard! 💃', 'uploads/profile_photos/demo_7.jpg', 'TP. Hồ Chí Minh', NULL, NULL, 1, 0, 45, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(108, 'Quốc Huy', 'huy.quoc@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '2003-02-14', 'Nhiếp ảnh gia nghiệp dư 📸', 'uploads/profile_photos/demo_8.jpg', 'Đà Lạt', NULL, NULL, 1, 0, 10, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
+(113, 'Vamper Boss', 'admin@gmail.com', 'admin', '$2y$10$oWV64BK2riYgSRgCg.Vw2eTWCTlfcAG3os9mwiRS2vYfseNY8fgNu', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 0, 999, 1, '2026-09-17 17:00:47', '2026-09-27 06:11:43'),
+(115, 'Vamper Boss', 'admin', 'admin', '$2y$10$JSWxCHuTf3tXDVNc2X9JpOD2Pyqw7ZCynGVyiML4Jo68wygbxo8Ma', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 0, 999, 1, '2026-10-08 00:57:26', '2026-10-08 00:57:26'),
+(116, 'Liem20cm', 'yivog51484@leafflip.com', 'user', '$2y$10$SA0FlQOxfqiGOzMldbluc.FKojC/o1sMvvxBtgObwZuUvqKfiqp0m', NULL, 'male', NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 100, 1, '2026-10-09 07:07:55', '2026-10-09 07:08:12');
 
 -- --------------------------------------------------------
 
@@ -451,6 +535,13 @@ ALTER TABLE `comment_interactions`
   ADD KEY `comment_interactions_ibfk_2` (`user_id`);
 
 --
+-- Chỉ mục cho bảng `conversations`
+--
+ALTER TABLE `conversations`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_conv` (`user1_id`,`user2_id`);
+
+--
 -- Chỉ mục cho bảng `follows`
 --
 ALTER TABLE `follows`
@@ -493,7 +584,9 @@ ALTER TABLE `matches`
 ALTER TABLE `otp_codes`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_email` (`email`),
-  ADD KEY `idx_expires` (`expires_at`);
+  ADD KEY `idx_expires` (`expires_at`),
+  ADD KEY `idx_otp_email` (`email`),
+  ADD KEY `idx_otp_combined` (`email`,`otp_code`,`is_used`,`expires_at`);
 
 --
 -- Chỉ mục cho bảng `posts`
@@ -534,11 +627,36 @@ ALTER TABLE `post_photos`
   ADD KEY `post_photos_ibfk_1` (`post_id`);
 
 --
+-- Chỉ mục cho bảng `reports`
+--
+ALTER TABLE `reports`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Chỉ mục cho bảng `settings`
+--
+ALTER TABLE `settings`
+  ADD PRIMARY KEY (`key`);
+
+--
+-- Chỉ mục cho bảng `soul_matches`
+--
+ALTER TABLE `soul_matches`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Chỉ mục cho bảng `transactions`
+--
+ALTER TABLE `transactions`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Chỉ mục cho bảng `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `idx_users_email` (`email`),
   ADD KEY `idx_email` (`email`),
   ADD KEY `idx_location` (`latitude`,`longitude`);
 
@@ -565,6 +683,12 @@ ALTER TABLE `user_photos`
 --
 ALTER TABLE `comment_interactions`
   MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT cho bảng `conversations`
+--
+ALTER TABLE `conversations`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT cho bảng `follows`
@@ -600,13 +724,13 @@ ALTER TABLE `matches`
 -- AUTO_INCREMENT cho bảng `otp_codes`
 --
 ALTER TABLE `otp_codes`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT cho bảng `posts`
 --
 ALTER TABLE `posts`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1011;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1022;
 
 --
 -- AUTO_INCREMENT cho bảng `post_comments`
@@ -618,19 +742,37 @@ ALTER TABLE `post_comments`
 -- AUTO_INCREMENT cho bảng `post_likes`
 --
 ALTER TABLE `post_likes`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT cho bảng `post_photos`
 --
 ALTER TABLE `post_photos`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+
+--
+-- AUTO_INCREMENT cho bảng `reports`
+--
+ALTER TABLE `reports`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT cho bảng `soul_matches`
+--
+ALTER TABLE `soul_matches`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `transactions`
+--
+ALTER TABLE `transactions`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=114;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=117;
 
 --
 -- AUTO_INCREMENT cho bảng `user_photos`

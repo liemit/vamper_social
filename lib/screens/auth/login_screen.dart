@@ -268,30 +268,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 20),
 
-                        // Social Buttons
+                        // Social Button (Google Sign-In)
                         FadeInUp(
                           duration: const Duration(milliseconds: 500),
                           delay: const Duration(milliseconds: 450),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: SocialButton(
-                                  text: 'Google',
-                                  icon: FontAwesomeIcons.google,
-                                  color: AppColors.google,
-                                  onPressed: () {},
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: SocialButton(
-                                  text: 'Facebook',
-                                  icon: FontAwesomeIcons.facebookF,
-                                  color: AppColors.facebook,
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
+                          child: SocialButton(
+                            text: 'Continue with Google',
+                            icon: FontAwesomeIcons.google,
+                            color: AppColors.google,
+                            onPressed: () => _authController.loginWithGoogle(),
                           ),
                         ),
 

@@ -375,34 +375,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Social Buttons
+                        // Social Button (Google Sign-In)
                         FadeInUp(
                           duration: const Duration(milliseconds: 600),
                           delay: const Duration(milliseconds: 900),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: SocialButton(
-                                  text: 'Google',
-                                  icon: FontAwesomeIcons.google,
-                                  color: AppColors.google,
-                                  onPressed: () {
-                                    // TODO: Google sign up
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: SocialButton(
-                                  text: 'Facebook',
-                                  icon: FontAwesomeIcons.facebookF,
-                                  color: AppColors.facebook,
-                                  onPressed: () {
-                                    // TODO: Facebook sign up
-                                  },
-                                ),
-                              ),
-                            ],
+                          child: SocialButton(
+                            text: 'Continue with Google',
+                            icon: FontAwesomeIcons.google,
+                            color: AppColors.google,
+                            onPressed: () => _authController.loginWithGoogle(),
                           ),
                         ),
 

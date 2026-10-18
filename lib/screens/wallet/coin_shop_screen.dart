@@ -217,14 +217,16 @@ class CoinShopScreen extends StatelessWidget {
             ),
             onPressed: () async {
               Get.back();
+              final paymentToken = 'pp_sandbox_${DateTime.now().millisecondsSinceEpoch}';
+              
               // 1. Open PayPal Sandbox Login URL
               final Uri sandboxUrl = Uri.parse('https://www.sandbox.paypal.com/signin');
               if (await canLaunchUrl(sandboxUrl)) {
                 await launchUrl(sandboxUrl, mode: LaunchMode.externalApplication);
               }
 
-              // 2. Show 2nd step confirmation dialog for professional UX
-              _showPaymentConfirmationDialog(context, authController, coins, price);
+              // 2. Show 2nd step confirmation dialog with secure token verification
+              _showPaymentConfirmationDialog(context, authController, coins, price, paymentToken);
             },
             child: const Text('Open PayPal Sandbox'),
           ),
@@ -233,7 +235,7 @@ class CoinShopScreen extends StatelessWidget {
     );
   }
 
-  void _showPaymentConfirmationDialog(BuildContext context, AuthController authController, int coins, double price) {
+  void _showPaymentConfirmationDialog(BuildContext context, AuthController authController, int coins, double price, String paymentToken) {
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -250,7 +252,7 @@ class CoinShopScreen extends StatelessWidget {
           children: [
             Text('Did you successfully complete your payment of \$$price USD on PayPal Sandbox?', style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
-            Text('Clicking "Confirm" will instantly credit $coins coins to your account.', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text('Clicking "Confirm" will securely verify and credit $coins coins to your account.', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           ],
         ),
         actions: [
@@ -266,7 +268,7 @@ class CoinShopScreen extends StatelessWidget {
             ),
             onPressed: () async {
               Get.back();
-              await authController.rechargeCoins(coins);
+              await authController.verifyAndRechargePayment(coins, price, paymentToken);
             },
             child: const Text('Confirm Payment'),
           ),
