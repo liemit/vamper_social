@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Show SHA-1 Fingerprint
+        run: |
+          cd android
+          ./gradlew signingReport
+
       - name: Build APK Release
         run: flutter build apk --release --android-skip-build-dependency-validation
 
