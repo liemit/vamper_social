@@ -48,9 +48,9 @@ try {
         exit();
     }
 
-    // Insert new user
-    $query = "INSERT INTO users (full_name, email, password, created_at) 
-              VALUES (:full_name, :email, :password, NOW())";
+    // Insert new user with 10 free initial Vamper coins
+    $query = "INSERT INTO users (full_name, email, password, coins, created_at)
+              VALUES (:full_name, :email, :password, 10, NOW())";
     
     $stmt = $db->prepare($query);
     

@@ -63,7 +63,7 @@ try {
         $randomPass = password_hash(uniqid($provider . '_', true), PASSWORD_DEFAULT);
 
         $ins = $db->prepare("INSERT INTO users (full_name, email, password, role, profile_photo, coins, is_active, is_verified, created_at)
-                             VALUES (:name, :email, :pass, 'user', :photo, 100, 1, 1, NOW())");
+                             VALUES (:name, :email, :pass, 'user', :photo, 10, 1, 1, NOW())");
         $ins->execute([
             ':name' => $full_name,
             ':email' => $email,

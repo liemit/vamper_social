@@ -834,7 +834,7 @@ if ($isAdminLoggedIn && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Số Xu Ban Đầu</label>
-                    <input type="number" name="coins" value="100" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+                    <input type="number" name="coins" value="10" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
                 </div>
                 <div class="flex justify-end gap-2 pt-3 border-t">
                     <button type="button" onclick="closeAddModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300">Hủy</button>
