@@ -29,8 +29,16 @@ jobs:
         run: flutter build apk --release --android-skip-build-dependency-validation
 
       - name: Show SHA-1 Fingerprint
+        continue-on-error: true
         run: |
-          keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+          KEYSTORE=$(find ~ -name "debug.keystore" 2>/dev/null | head -n 1)
+          if [ -n "$KEYSTORE" ]; then
+            echo "Found keystore at: $KEYSTORE"
+            keytool -list -v -keystore "$KEYSTORE" -alias androiddebugkey -storepass android -keypass android
+          else
+            echo "Searching gradle signing report..."
+            cd android && chmod +x gradlew && ./gradlew signingReport || true
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
