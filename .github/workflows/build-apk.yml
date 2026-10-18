@@ -28,6 +28,10 @@ jobs:
       - name: Build APK Release
         run: flutter build apk --release --android-skip-build-dependency-validation
 
+      - name: Rename APK Output
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Vamper.apk
+
       - name: Show SHA-1 Fingerprint
         continue-on-error: true
         run: |
@@ -43,5 +47,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Vamper-Release-v1.0.0
+          path: build/app/outputs/flutter-apk/Vamper.apk
