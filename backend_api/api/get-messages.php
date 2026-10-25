@@ -33,8 +33,20 @@ try {
         }
     }
 
+    // Ensure reply_to and reaction columns exist safely
+    try {
+        $colCheck = $db->query("SHOW COLUMNS FROM messages LIKE 'reply_to'");
+        if ($colCheck->rowCount() == 0) {
+            $db->exec("ALTER TABLE messages ADD COLUMN reply_to TEXT NULL");
+        }
+        $colCheck2 = $db->query("SHOW COLUMNS FROM messages LIKE 'reaction'");
+        if ($colCheck2->rowCount() == 0) {
+            $db->exec("ALTER TABLE messages ADD COLUMN reaction VARCHAR(50) NULL");
+        }
+    } catch (Exception $e) {}
+
     // Fetch messages
-    $mStmt = $db->prepare("SELECT id, conversation_id, sender_id, receiver_id, message_type, content, media_url, is_read, created_at
+    $mStmt = $db->prepare("SELECT id, conversation_id, sender_id, receiver_id, message_type, content, media_url, reply_to, reaction, is_read, created_at
                            FROM messages
                            WHERE conversation_id = :cid
                            ORDER BY created_at ASC");

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: localhost:3306
--- Thời gian đã tạo: Th10 11, 2026 lúc 05:36 AM
+-- Thời gian đã tạo: Th10 25, 2026 lúc 04:36 PM
 -- Phiên bản máy phục vụ: 8.0.30
 -- Phiên bản PHP: 8.1.10
 
@@ -20,6 +20,85 @@ SET time_zone = "+00:00";
 --
 -- Cơ sở dữ liệu: `vamper_social`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `blocked_users`
+--
+
+CREATE TABLE IF NOT EXISTS `blocked_users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `blocker_id` int NOT NULL,
+  `blocked_id` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_block` (`blocker_id`,`blocked_id`),
+  KEY `idx_blocker` (`blocker_id`),
+  KEY `idx_blocked` (`blocked_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `card_swipes`
+--
+
+CREATE TABLE `card_swipes` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `target_id` int NOT NULL,
+  `action` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'pass, like, superlike',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `card_swipes`
+--
+
+INSERT INTO `card_swipes` (`id`, `user_id`, `target_id`, `action`, `created_at`) VALUES
+(1, 15, 106, 'pass', '2026-10-12 14:47:09'),
+(2, 15, 14, 'pass', '2026-10-12 14:47:11'),
+(3, 15, 113, 'pass', '2026-10-12 14:47:13'),
+(4, 15, 103, 'pass', '2026-10-12 14:47:15'),
+(5, 15, 116, 'pass', '2026-10-12 14:47:16'),
+(6, 15, 16, 'pass', '2026-10-12 14:47:17'),
+(7, 15, 102, 'pass', '2026-10-12 14:47:18'),
+(8, 15, 115, 'pass', '2026-10-12 14:47:18'),
+(9, 15, 101, 'pass', '2026-10-12 14:47:19'),
+(10, 15, 105, 'pass', '2026-10-12 14:47:20'),
+(11, 15, 107, 'pass', '2026-10-12 14:47:21'),
+(12, 15, 108, 'pass', '2026-10-12 14:47:21'),
+(13, 15, 104, 'pass', '2026-10-12 14:47:22'),
+(14, 125, 123, 'pass', '2026-10-18 12:08:50'),
+(15, 125, 102, 'pass', '2026-10-18 12:08:52'),
+(16, 125, 105, 'pass', '2026-10-18 12:08:53'),
+(17, 125, 117, 'pass', '2026-10-18 12:08:54'),
+(18, 125, 101, 'pass', '2026-10-18 12:08:54'),
+(19, 125, 113, 'pass', '2026-10-18 12:08:55'),
+(20, 125, 118, 'pass', '2026-10-18 12:08:55'),
+(21, 16, 128, 'pass', '2026-10-25 13:21:15'),
+(22, 16, 15, 'pass', '2026-10-25 13:21:16'),
+(23, 16, 104, 'pass', '2026-10-25 13:21:17'),
+(24, 16, 129, 'pass', '2026-10-25 13:21:17'),
+(25, 16, 103, 'pass', '2026-10-25 13:21:18'),
+(26, 16, 113, 'pass', '2026-10-25 13:21:18'),
+(27, 16, 118, 'pass', '2026-10-25 13:21:18'),
+(28, 16, 105, 'pass', '2026-10-25 13:21:18'),
+(29, 16, 102, 'pass', '2026-10-25 13:21:19'),
+(30, 16, 116, 'pass', '2026-10-25 13:21:19'),
+(31, 16, 127, 'pass', '2026-10-25 13:21:20'),
+(32, 16, 107, 'pass', '2026-10-25 13:21:20'),
+(33, 16, 101, 'pass', '2026-10-25 13:21:20'),
+(34, 16, 119, 'pass', '2026-10-25 13:21:20'),
+(35, 16, 117, 'pass', '2026-10-25 13:21:21'),
+(36, 16, 108, 'pass', '2026-10-25 13:21:21'),
+(37, 15, 129, 'pass', '2026-10-25 14:25:43'),
+(38, 15, 119, 'pass', '2026-10-25 14:25:43'),
+(39, 15, 127, 'pass', '2026-10-25 14:25:44'),
+(40, 15, 117, 'pass', '2026-10-25 14:25:44'),
+(41, 15, 128, 'pass', '2026-10-25 14:25:45'),
+(42, 15, 118, 'pass', '2026-10-25 14:25:46');
 
 -- --------------------------------------------------------
 
@@ -49,6 +128,20 @@ CREATE TABLE `conversations` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `conversations`
+--
+
+INSERT INTO `conversations` (`id`, `user1_id`, `user2_id`, `last_message`, `updated_at`) VALUES
+(1, 15, 105, '2', '2026-10-14 15:44:16'),
+(2, 15, 104, '1', '2026-10-14 15:43:57'),
+(3, 15, 102, '3', '2026-10-14 15:44:29'),
+(4, 15, 101, '4', '2026-10-14 15:44:45'),
+(5, 15, 103, '5', '2026-10-14 15:44:58'),
+(6, 15, 107, '7', '2026-10-14 15:45:11'),
+(7, 15, 16, 'ukm', '2026-10-25 13:58:09'),
+(8, 15, 129, NULL, '2026-10-25 14:22:13');
+
 -- --------------------------------------------------------
 
 --
@@ -73,8 +166,7 @@ INSERT INTO `follows` (`id`, `follower_id`, `followed_id`, `created_at`) VALUES
 (4, 104, 101, '2026-09-17 14:14:40'),
 (5, 105, 101, '2026-09-17 14:14:40'),
 (6, 107, 101, '2026-09-17 14:14:40'),
-(7, 102, 106, '2026-09-17 14:14:40'),
-(8, 106, 102, '2026-09-17 14:14:40');
+(9, 16, 15, '2026-10-14 15:47:41');
 
 -- --------------------------------------------------------
 
@@ -185,6 +277,86 @@ CREATE TABLE `matches` (
 -- --------------------------------------------------------
 
 --
+-- Cấu trúc bảng cho bảng `match_queue`
+--
+
+CREATE TABLE `match_queue` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `mode` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'soul or voice',
+  `last_ping` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `messages`
+--
+
+CREATE TABLE `messages` (
+  `id` int NOT NULL,
+  `conversation_id` int NOT NULL,
+  `sender_id` int NOT NULL,
+  `receiver_id` int NOT NULL,
+  `message_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'text' COMMENT 'text, image',
+  `content` text COLLATE utf8mb4_unicode_ci,
+  `media_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_read` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `reply_to` text COLLATE utf8mb4_unicode_ci,
+  `reaction` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `messages`
+--
+
+INSERT INTO `messages` (`id`, `conversation_id`, `sender_id`, `receiver_id`, `message_type`, `content`, `media_url`, `is_read`, `created_at`, `reply_to`, `reaction`) VALUES
+(1, 1, 15, 105, 'text', 'Chào cậu !😍', NULL, 0, '2026-10-14 15:03:12', NULL, NULL),
+(2, 2, 15, 104, 'text', '1', NULL, 0, '2026-10-14 15:43:57', NULL, NULL),
+(3, 1, 15, 105, 'text', '2', NULL, 0, '2026-10-14 15:44:16', NULL, NULL),
+(4, 3, 15, 102, 'text', '3', NULL, 0, '2026-10-14 15:44:27', NULL, NULL),
+(5, 4, 15, 101, 'text', '4', NULL, 0, '2026-10-14 15:44:45', NULL, NULL),
+(6, 5, 15, 103, 'text', '5', NULL, 0, '2026-10-14 15:44:58', NULL, NULL),
+(7, 6, 15, 107, 'text', '7', NULL, 0, '2026-10-14 15:45:11', NULL, NULL),
+(8, 7, 16, 15, 'text', 'Chào em anh muốn làm quen !', NULL, 1, '2026-10-14 15:47:31', NULL, '❤️'),
+(9, 7, 15, 16, 'text', 'Vâng em rất chào anh :))', NULL, 1, '2026-10-14 15:48:53', NULL, NULL),
+(10, 7, 15, 16, 'text', 'anh tên gì hihi', NULL, 1, '2026-10-25 12:30:08', NULL, '👍'),
+(11, 7, 15, 16, 'text', 'Làm thì làm nhanh đi 😜', NULL, 1, '2026-10-25 12:51:33', 'Chào em anh muốn làm quen !', NULL),
+(12, 7, 15, 16, 'recalled', '[Message recalled]', NULL, 1, '2026-10-25 13:10:35', NULL, '😂'),
+(13, 7, 15, 16, 'text', 'Thu hòi tin nhắn cho khỏi coi 😼', NULL, 1, '2026-10-25 13:55:44', NULL, NULL),
+(14, 7, 16, 15, 'text', 'thôi khỏi coi cũng đc :))', NULL, 1, '2026-10-25 13:56:57', NULL, NULL),
+(15, 7, 16, 15, 'text', 'ukm', NULL, 1, '2026-10-25 13:58:09', NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `sender_id` int DEFAULT NULL,
+  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_read` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `user_id`, `sender_id`, `type`, `title`, `body`, `is_read`, `created_at`) VALUES
+(1, 16, 15, 'message', 'New Message', 'You received a new message!', 1, '2026-10-25 13:55:44'),
+(2, 15, 16, 'message', 'New Message', 'You received a new message!', 1, '2026-10-25 13:56:58'),
+(3, 15, 16, 'message', 'New Message', 'You received a new message!', 1, '2026-10-25 13:58:09');
+
+-- --------------------------------------------------------
+
+--
 -- Cấu trúc bảng cho bảng `otp_codes`
 --
 
@@ -210,7 +382,40 @@ INSERT INTO `otp_codes` (`id`, `email`, `otp_code`, `expires_at`, `is_used`, `cr
 (15, 'homafim948@robustq.com', '744327', '2026-09-01 12:11:28', 1, '2026-09-01 04:41:28'),
 (16, 'dilewor406@slotbeer.com', '094254', '2026-09-01 12:55:57', 1, '2026-09-01 05:25:57'),
 (17, 'yesid63528@robustq.com', '631677', '2026-09-01 17:50:44', 0, '2026-09-01 10:20:44'),
-(18, 'poxojo1340@slotbeer.com', '183817', '2026-09-01 19:36:31', 1, '2026-09-01 12:06:31');
+(18, 'poxojo1340@slotbeer.com', '183817', '2026-09-01 19:36:31', 1, '2026-09-01 12:06:31'),
+(21, 'febatax342@proguidex.com', '702154', '2026-10-15 19:53:48', 0, '2026-10-15 12:23:48'),
+(22, 'vevajab925@moravita.com', '426805', '2026-10-15 20:23:38', 1, '2026-10-15 12:53:38'),
+(25, 'bixovi4463@moravita.com', '868247', '2026-10-19 00:32:58', 1, '2026-10-18 17:02:58'),
+(26, 'tonociy304@moravita.com', '916942', '2026-10-19 07:45:02', 1, '2026-10-19 00:15:02'),
+(27, 'radaver987@moravita.com', '944004', '2026-10-20 21:40:53', 1, '2026-10-20 14:10:53');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `parties`
+--
+
+CREATE TABLE `parties` (
+  `id` int NOT NULL,
+  `host_id` int NOT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `theme` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT 'General',
+  `participants_count` int DEFAULT '1',
+  `is_live` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_private` tinyint(1) DEFAULT '0',
+  `password` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `parties`
+--
+
+INSERT INTO `parties` (`id`, `host_id`, `title`, `theme`, `participants_count`, `is_live`, `created_at`, `is_private`, `password`) VALUES
+(1, 15, 'Late Night Chill & Lofi Beats 🎧', '☕ Chill', 12, 1, '2026-10-25 15:22:34', 0, NULL),
+(2, 16, 'Speed Dating & Voice Match 💕', '💕 Dating', 28, 1, '2026-10-25 15:22:34', 0, NULL),
+(3, 101, 'Singing Contest & EDM Party 🎤', '🎵 Music', 45, 1, '2026-10-25 15:22:34', 0, NULL),
+(4, 102, 'Confessions & Deep Soul Talks 💬', '☕ Chill', 18, 1, '2026-10-25 15:22:34', 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -240,7 +445,9 @@ INSERT INTO `posts` (`id`, `user_id`, `content`, `image_url`, `status`, `created
 (1006, 107, 'Tiệc tối cuối tuần cùng hội bạn thân! 🎉 #saigon #party', NULL, 1, '2026-09-15 15:30:00', '2026-09-17 14:14:39'),
 (1007, 104, 'Có ai tin vào định mệnh không? #love #soulmate', NULL, 1, '2026-09-17 07:20:00', '2026-09-17 14:14:39'),
 (1011, 15, 'tìm kiếm anh trai dập cỡ này :))', NULL, 1, '2026-10-09 03:14:04', '2026-10-09 13:02:39'),
-(1021, 15, 'Đây là cây quạt điều hòa cao 1m90 !', NULL, 0, '2026-10-09 08:47:16', '2026-10-09 13:02:03');
+(1021, 15, 'Đây là cây quạt điều hòa cao 1m90 !', NULL, 0, '2026-10-09 08:47:16', '2026-10-09 13:02:03'),
+(1022, 129, '', NULL, 1, '2026-10-20 14:12:14', '2026-10-20 14:12:14'),
+(1023, 129, '', NULL, 1, '2026-10-20 14:12:47', '2026-10-20 14:12:47');
 
 -- --------------------------------------------------------
 
@@ -312,7 +519,6 @@ INSERT INTO `post_likes` (`id`, `post_id`, `user_id`, `created_at`) VALUES
 (5, 1001, 104, '2026-09-17 14:14:40'),
 (6, 1001, 105, '2026-09-17 14:14:40'),
 (7, 1002, 101, '2026-09-17 14:14:40'),
-(8, 1002, 106, '2026-09-17 14:14:40'),
 (9, 1003, 108, '2026-09-17 14:14:40'),
 (11, 1007, 101, '2026-09-17 14:14:40'),
 (12, 1007, 103, '2026-09-17 14:14:40'),
@@ -355,7 +561,9 @@ INSERT INTO `post_photos` (`id`, `post_id`, `photo_url`, `created_at`, `alignmen
 (42, 1011, 'uploads/posts/post_15_6ac8e5efcf9cc_upd_1.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
 (43, 1011, 'uploads/posts/post_15_6ac8e5efd1d85_upd_2.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
 (44, 1011, 'uploads/posts/post_15_6ac8e5efd3290_upd_3.png', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
-(45, 1011, 'uploads/posts/post_15_6ac8e5efd5f37_upd_4.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00);
+(45, 1011, 'uploads/posts/post_15_6ac8e5efd5f37_upd_4.jpg', '2026-10-09 13:02:39', 0.0000, 0.0000, 1.00),
+(46, 1022, 'uploads/posts/post_129_6ad776be6a3c1_0.jpg', '2026-10-20 14:12:14', 0.0000, 0.0000, 1.00),
+(47, 1023, 'uploads/posts/post_129_6ad776df244f2_0.jpg', '2026-10-20 14:12:47', 0.0000, 0.0000, 1.00);
 
 -- --------------------------------------------------------
 
@@ -414,6 +622,17 @@ CREATE TABLE `soul_matches` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `soul_matches`
+--
+
+INSERT INTO `soul_matches` (`id`, `user1_id`, `user2_id`, `status`, `created_at`) VALUES
+(1, 15, 104, 2, '2026-10-11 08:47:48'),
+(2, 15, 116, 1, '2026-10-11 08:49:00'),
+(3, 15, 102, 2, '2026-10-11 08:50:01'),
+(4, 15, 108, 2, '2026-10-11 09:30:02'),
+(5, 15, 115, 2, '2026-10-11 10:52:19');
+
 -- --------------------------------------------------------
 
 --
@@ -471,20 +690,23 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `full_name`, `email`, `role`, `password`, `phone`, `gender`, `date_of_birth`, `bio`, `profile_photo`, `location`, `latitude`, `longitude`, `is_verified`, `email_verified`, `coins`, `is_active`, `created_at`, `updated_at`) VALUES
-(14, 'homafim', 'homafim948@robustq.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', '', 'male', '2002-01-14', '1m83', 'uploads/profile_photos/profile_14_1788279438.png', 'Kim Boi, Phu Tho', NULL, NULL, 1, 0, 10, 1, '2026-09-01 04:41:28', '2026-09-02 06:14:51'),
-(15, 'dilewor406', 'dilewor406@slotbeer.com', 'user', '$2y$10$4W44WaJwuV./iTzg2B31Gev6TJRbz5sDDp2eik0st0XP8s9885giS', '0359750304', 'male', '2000-01-12', 'buy8oh89h9', 'uploads/profile_photos/profile_15_1789283211.png', 'Kim Bảng, Lê Hồ, Ninh Bình', NULL, NULL, 1, 0, 810, 1, '2026-09-01 05:25:57', '2026-10-10 16:20:44'),
-(16, 'yesid63528', 'yesid63528@robustq.com', 'user', '$2y$10$1dELgT9dAW83Empi/rkGrutz/BpjinHKTKyrXdAWquOhYOXv0R7iC', '', NULL, NULL, '', 'uploads/profile_photos/profile_16_1788279528.jpg', '', NULL, NULL, 0, 0, 10, 1, '2026-09-01 10:20:44', '2026-10-09 09:25:52'),
+(15, 'dilewor406', 'dilewor406@slotbeer.com', 'user', '$2y$10$4W44WaJwuV./iTzg2B31Gev6TJRbz5sDDp2eik0st0XP8s9885giS', '0359750304', 'male', '2000-01-12', 'buy8oh89h9', 'uploads/profile_photos/profile_15_1789283211.png', 'Kim Bảng, Lê Hồ, Ninh Bình', NULL, NULL, 1, 0, 810, 1, '2026-09-01 05:25:57', '2026-10-25 16:14:17'),
+(16, 'yesid63528', 'yesid63528@robustq.com', 'user', '$2y$10$1dELgT9dAW83Empi/rkGrutz/BpjinHKTKyrXdAWquOhYOXv0R7iC', '', NULL, NULL, '', 'uploads/profile_photos/profile_16_1788279528.jpg', '', NULL, NULL, 0, 0, 10, 1, '2026-09-01 10:20:44', '2026-10-25 13:57:58'),
 (101, 'Linh Angel', 'linh.angel@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2002-05-20', 'Yêu màu hồng, ghét sự giả dối ✨', 'uploads/profile_photos/demo_1.jpg', 'Hà Nội', NULL, NULL, 1, 0, 50, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (102, 'Minh Tuấn', 'tuan.minh@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1998-11-12', 'Gym, Coffee and Coding ☕️💪', 'uploads/profile_photos/demo_2.jpg', 'TP. Hồ Chí Minh', NULL, NULL, 1, 0, 20, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (103, 'Khánh Vy', 'vy.khanh@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2004-01-15', 'Gen Z chính hiệu, thích đi du lịch ✈️', 'uploads/profile_photos/demo_3.jpg', 'Đà Nẵng', NULL, NULL, 0, 0, 10, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (104, 'Hoàng Long', 'long.hoang@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1995-07-08', 'Thích tìm hiểu về tâm lý học và vũ trụ 🌌', 'uploads/profile_photos/demo_4.jpg', 'Hải Phòng', NULL, NULL, 1, 0, 100, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (105, 'Thủy Tiên', 'tien.thuy@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2000-03-25', 'Tìm kiếm một mối quan hệ nghiêm túc ❤️', 'uploads/profile_photos/demo_5.jpg', 'Cần Thơ', NULL, NULL, 1, 0, 30, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
-(106, 'Đức Anh', 'anh.duc@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '1999-09-09', 'Chàng trai hướng nội, yêu mèo 🐈', 'uploads/profile_photos/demo_6.jpg', 'Hà Nội', NULL, NULL, 0, 0, 15, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (107, 'Bảo Ngọc', 'ngoc.bao@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'female', '2001-12-30', 'Work hard, play hard! 💃', 'uploads/profile_photos/demo_7.jpg', 'TP. Hồ Chí Minh', NULL, NULL, 1, 0, 45, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (108, 'Quốc Huy', 'huy.quoc@test.com', 'user', '$2y$10$ueHRNS.Kti/0X6p.PMkyAuap6Oksd5bH4M5XzY.G1OeOoYopjkWYG', NULL, 'male', '2003-02-14', 'Nhiếp ảnh gia nghiệp dư 📸', 'uploads/profile_photos/demo_8.jpg', 'Đà Lạt', NULL, NULL, 1, 0, 10, 1, '2026-09-17 14:14:39', '2026-09-17 14:14:39'),
 (113, 'Vamper Boss', 'admin@gmail.com', 'admin', '$2y$10$oWV64BK2riYgSRgCg.Vw2eTWCTlfcAG3os9mwiRS2vYfseNY8fgNu', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 0, 999, 1, '2026-09-17 17:00:47', '2026-09-27 06:11:43'),
-(115, 'Vamper Boss', 'admin', 'admin', '$2y$10$JSWxCHuTf3tXDVNc2X9JpOD2Pyqw7ZCynGVyiML4Jo68wygbxo8Ma', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 0, 999, 1, '2026-10-08 00:57:26', '2026-10-08 00:57:26'),
-(116, 'Liem20cm', 'yivog51484@leafflip.com', 'user', '$2y$10$SA0FlQOxfqiGOzMldbluc.FKojC/o1sMvvxBtgObwZuUvqKfiqp0m', NULL, 'male', NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 100, 1, '2026-10-09 07:07:55', '2026-10-09 07:08:12');
+(116, 'Liem20cm', 'yivog51484@leafflip.com', 'user', '$2y$10$SA0FlQOxfqiGOzMldbluc.FKojC/o1sMvvxBtgObwZuUvqKfiqp0m', NULL, 'male', NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 100, 1, '2026-10-09 07:07:55', '2026-10-09 07:08:12'),
+(117, 'febatax342', 'febatax342@proguidex.com', 'user', '$2y$10$ePKOTJFSerew0IyL2UJGkum59eBcPY9gobEyotQS9lw6S5m6hgQIW', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 10, 1, '2026-10-15 12:23:48', '2026-10-15 12:23:48'),
+(118, 'vevajab925', 'vevajab925@moravita.com', 'user', '$2y$10$Eg5OhS9kunuIqaAaPbe/YuU5Px7Y7YKXYgM72cCYWD5.2IRkA5ahm', NULL, 'male', '2000-01-13', 'No Biot Yet', NULL, NULL, NULL, NULL, 1, 1, 10, 1, '2026-10-15 12:53:38', '2026-10-15 12:54:50'),
+(119, 'Vamper Boss', 'admin', 'admin', '$2y$10$sVauG3GQbcO20UPQjh0ZfeWe1go278qxm6oXg7sr6lJtYSypwVwKi', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 0, 999, 1, '2026-10-16 00:54:32', '2026-10-16 00:54:32'),
+(127, 'bixovi4463', 'bixovi4463@moravita.com', 'user', '$2y$10$RQj9Deelm30QkKmAYxwLyOHPga44ujvPlbAR/zmJrPruHbcbUz2WS', NULL, 'male', '2000-01-02', 'No Biot Yet', 'uploads/profile_photos/profile_127_1792343078.jpg', NULL, NULL, NULL, 1, 1, 10, 1, '2026-10-18 17:02:58', '2026-10-18 17:04:38'),
+(128, 'tonociy304', 'tonociy304@moravita.com', 'user', '$2y$10$jdx/oBjnwkR5BYy8M6.QTeywbPsmFrPsGDoFfP.zPYQmaFAKoAUG6', NULL, 'male', '2000-01-10', 'No Biot Yet', 'uploads/profile_photos/profile_128_1792368980.jpg', NULL, NULL, NULL, 1, 1, 10, 1, '2026-10-19 00:15:02', '2026-10-19 00:16:20'),
+(129, 'radaver987', 'radaver987@moravita.com', 'user', '$2y$10$LQqNXZ.PShiLewOufI2b6.kWTdPG5LFWslT0Srk3FSOxlv9nJIXBC', NULL, 'male', '2005-01-29', '', NULL, NULL, NULL, NULL, 1, 1, 10, 1, '2026-10-20 14:10:53', '2026-10-20 14:11:50');
 
 -- --------------------------------------------------------
 
@@ -525,6 +747,13 @@ INSERT INTO `user_photos` (`id`, `user_id`, `photo_url`, `is_profile`, `sort_ord
 --
 -- Chỉ mục cho các bảng đã đổ
 --
+
+--
+-- Chỉ mục cho bảng `card_swipes`
+--
+ALTER TABLE `card_swipes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_swipe` (`user_id`,`target_id`);
 
 --
 -- Chỉ mục cho bảng `comment_interactions`
@@ -579,6 +808,27 @@ ALTER TABLE `matches`
   ADD KEY `user2_id` (`user2_id`);
 
 --
+-- Chỉ mục cho bảng `match_queue`
+--
+ALTER TABLE `match_queue`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_queue` (`user_id`,`mode`);
+
+--
+-- Chỉ mục cho bảng `messages`
+--
+ALTER TABLE `messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_conv` (`conversation_id`);
+
+--
+-- Chỉ mục cho bảng `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user` (`user_id`);
+
+--
 -- Chỉ mục cho bảng `otp_codes`
 --
 ALTER TABLE `otp_codes`
@@ -587,6 +837,12 @@ ALTER TABLE `otp_codes`
   ADD KEY `idx_expires` (`expires_at`),
   ADD KEY `idx_otp_email` (`email`),
   ADD KEY `idx_otp_combined` (`email`,`otp_code`,`is_used`,`expires_at`);
+
+--
+-- Chỉ mục cho bảng `parties`
+--
+ALTER TABLE `parties`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Chỉ mục cho bảng `posts`
@@ -679,6 +935,12 @@ ALTER TABLE `user_photos`
 --
 
 --
+-- AUTO_INCREMENT cho bảng `card_swipes`
+--
+ALTER TABLE `card_swipes`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+
+--
 -- AUTO_INCREMENT cho bảng `comment_interactions`
 --
 ALTER TABLE `comment_interactions`
@@ -688,13 +950,13 @@ ALTER TABLE `comment_interactions`
 -- AUTO_INCREMENT cho bảng `conversations`
 --
 ALTER TABLE `conversations`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT cho bảng `follows`
 --
 ALTER TABLE `follows`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT cho bảng `hashtags`
@@ -721,16 +983,40 @@ ALTER TABLE `matches`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT cho bảng `match_queue`
+--
+ALTER TABLE `match_queue`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+
+--
+-- AUTO_INCREMENT cho bảng `messages`
+--
+ALTER TABLE `messages`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+
+--
+-- AUTO_INCREMENT cho bảng `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
 -- AUTO_INCREMENT cho bảng `otp_codes`
 --
 ALTER TABLE `otp_codes`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+
+--
+-- AUTO_INCREMENT cho bảng `parties`
+--
+ALTER TABLE `parties`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `posts`
 --
 ALTER TABLE `posts`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1022;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1024;
 
 --
 -- AUTO_INCREMENT cho bảng `post_comments`
@@ -748,7 +1034,7 @@ ALTER TABLE `post_likes`
 -- AUTO_INCREMENT cho bảng `post_photos`
 --
 ALTER TABLE `post_photos`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT cho bảng `reports`
@@ -760,7 +1046,7 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT cho bảng `soul_matches`
 --
 ALTER TABLE `soul_matches`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `transactions`
@@ -772,7 +1058,7 @@ ALTER TABLE `transactions`
 -- AUTO_INCREMENT cho bảng `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=117;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
 
 --
 -- AUTO_INCREMENT cho bảng `user_photos`

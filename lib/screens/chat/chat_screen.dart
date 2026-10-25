@@ -25,6 +25,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
 
+  MessageModel? _replyingTo;
+
   @override
   void initState() {
     super.initState();
@@ -53,11 +55,15 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
+    final replyText = _replyingTo?.content;
     _textController.clear();
+    setState(() => _replyingTo = null);
+
     final success = await _chatController.sendTextMessage(
       conversationId: widget.conversation.conversationId,
       partnerId: widget.conversation.partnerId,
       text: text,
+      replyTo: replyText,
     );
 
     if (success) {
@@ -69,10 +75,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final XFile? file = await _picker.pickImage(source: source, imageQuality: 70);
     if (file == null) return;
 
+    final replyText = _replyingTo?.content;
+    setState(() => _replyingTo = null);
+
     final success = await _chatController.sendImageMessage(
       conversationId: widget.conversation.conversationId,
       partnerId: widget.conversation.partnerId,
       imageFile: file,
+      replyTo: replyText,
     );
 
     if (success) {
@@ -80,7 +90,26 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _showImagePickerModal() {
+  void _pickAndSendVideo(ImageSource source) async {
+    final XFile? file = await _picker.pickVideo(source: source);
+    if (file == null) return;
+
+    final replyText = _replyingTo?.content;
+    setState(() => _replyingTo = null);
+
+    final success = await _chatController.sendVideoMessage(
+      conversationId: widget.conversation.conversationId,
+      partnerId: widget.conversation.partnerId,
+      videoFile: file,
+      replyTo: replyText,
+    );
+
+    if (success) {
+      _scrollToBottom();
+    }
+  }
+
+  void _showMediaPickerModal() {
     Get.bottomSheet(
       Container(
         color: Colors.white,
@@ -97,10 +126,18 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library, color: AppColors.primary),
-              title: const Text('Choose from Gallery'),
+              title: const Text('Choose Photo from Gallery'),
               onTap: () {
                 Get.back();
                 _pickAndSendImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam, color: Colors.blue),
+              title: const Text('Send Short Video (Max 15MB)'),
+              onTap: () {
+                Get.back();
+                _pickAndSendVideo(ImageSource.gallery);
               },
             ),
           ],
@@ -110,38 +147,145 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showEmojiPickerModal() {
-    final emojis = ['😍', '❤️', '🔥', '✨', '😊', '👍', '💕', '🌹', '👋', '🎉', '🥰', '💬', '😘', '🌟'];
+    final emojis = [
+      '😍', '❤️', '🔥', '✨', '😊', '👍', '💕', '🌹', '👋', '🎉',
+      '🥰', '💬', '😘', '🌟', '🤩', '😎', '😜', '💖', '👑', '🚀',
+      '☕', '🍕', '🐱', '🌹', '💔', '🙏', '💯', '💩', '👻', '🎃',
+      '😁', '😂', '😜', '😇', '🤗', '🤭', '🤫', '🤔', '🤤', '😴',
+      '🥳', '😈', '👽', '🤖', '😺', '😸', '😹', '😻', '😼', '🤲'
+    ];
+
+    final vamperStickers = [
+      '💖', '💘', '💍', '💎', '👑', '🦄', '🍷', '🥂', '💋', '💃',
+      '🕺', '🌹', '🦋', '💫', '🍀', '🔥', '💌', '🧸', '🍫', '✨',
+      '⭐', '🌟', '💥', '💯', '💢', '💬', '👁️‍🗨️', '💤', '🎉', '🎊'
+    ];
 
     Get.bottomSheet(
       Container(
         color: Colors.white,
         padding: const EdgeInsets.all(16),
+        height: 380,
+        child: DefaultTabController(
+          length: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const TabBar(
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textLight,
+                indicatorColor: AppColors.primary,
+                tabs: [
+                  Tab(text: 'Emojis (😊)'),
+                  Tab(text: 'Vamper Exclusive (💎)'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: emojis.map((emoji) {
+                          return InkWell(
+                            onTap: () {
+                              _textController.text += emoji;
+                              Get.back();
+                            },
+                            child: SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: Center(
+                                child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: vamperStickers.map((sticker) {
+                          return InkWell(
+                            onTap: () {
+                              _textController.text += sticker;
+                              Get.back();
+                            },
+                            child: SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: Center(
+                                child: Text(sticker, style: const TextStyle(fontSize: 26)),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMessageOptions(MessageModel msg, bool isMe) {
+    final reactions = ['❤️', '👍', '😂', '😮', '😢', '🔥'];
+
+    Get.bottomSheet(
+      Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Quick Emojis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              itemCount: emojis.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-              ),
-              itemBuilder: (context, index) {
+            const Text('React to message', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textLight)),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: reactions.map((emoji) {
                 return InkWell(
-                  onTap: () {
-                    _textController.text += emojis[index];
+                  onTap: () async {
                     Get.back();
+                    await _chatController.reactToMessage(msg.id, msg.reaction == emoji ? null : emoji);
                   },
-                  child: Center(
-                    child: Text(emojis[index], style: const TextStyle(fontSize: 26)),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: msg.reaction == emoji ? AppColors.primary.withOpacity(0.2) : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(emoji, style: const TextStyle(fontSize: 24)),
                   ),
                 );
+              }).toList(),
+            ),
+            const Divider(height: 24),
+            ListTile(
+              leading: const Icon(Icons.reply, color: AppColors.primary),
+              title: const Text('Reply (Quote)'),
+              onTap: () {
+                Get.back();
+                setState(() => _replyingTo = msg);
               },
             ),
+            if (isMe && msg.messageType != 'recalled')
+              ListTile(
+                leading: const Icon(Icons.undo, color: Colors.red),
+                title: const Text('Recall Message'),
+                onTap: () async {
+                  Get.back();
+                  await _chatController.recallMessage(msg.id);
+                },
+              ),
           ],
         ),
       ),
@@ -261,11 +405,39 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemBuilder: (context, index) {
                   final msg = _chatController.messages[index];
                   final isMe = msg.senderId == _authController.currentUser.value?.id.toString();
-                  return _buildMessageBubble(msg, isMe);
+                  return GestureDetector(
+                    onLongPress: () => _showMessageOptions(msg, isMe),
+                    child: _buildMessageBubble(msg, isMe),
+                  );
                 },
               );
             }),
           ),
+
+          // Quote Reply Preview Banner
+          if (_replyingTo != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.grey.shade200,
+              child: Row(
+                children: [
+                  const Icon(Icons.reply, color: AppColors.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Replying to: ${_replyingTo!.content}',
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18, color: AppColors.textLight),
+                    onPressed: () => setState(() => _replyingTo = null),
+                  ),
+                ],
+              ),
+            ),
 
           // Input Bar
           Container(
@@ -274,12 +446,10 @@ class _ChatScreenState extends State<ChatScreen> {
             child: SafeArea(
               child: Row(
                 children: [
-                  // Photo Attachment Button
                   IconButton(
                     icon: const Icon(Icons.add_photo_alternate_rounded, color: AppColors.primary, size: 26),
-                    onPressed: _showImagePickerModal,
+                    onPressed: _showMediaPickerModal,
                   ),
-                  // Emoji Picker Button
                   IconButton(
                     icon: const Icon(Icons.sentiment_satisfied_alt_rounded, color: Colors.amber, size: 26),
                     onPressed: _showEmojiPickerModal,
@@ -328,63 +498,150 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 16),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            // Image Attachment if present
-            if (msg.messageType == 'image' && mediaUrl != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  mediaUrl,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const SizedBox(
-                      height: 150,
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    );
-                  },
+            Container(
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              decoration: BoxDecoration(
+                color: msg.messageType == 'recalled' ? Colors.grey.shade200 : (isMe ? AppColors.primary : Colors.white),
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: Radius.circular(isMe ? 16 : 4),
+                  bottomRight: Radius.circular(isMe ? 4 : 16),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-            ],
-            // Text Content if present
-            if (msg.content != null && msg.content!.isNotEmpty && msg.content != '📷 [Photo]')
-              Text(
-                msg.content!,
-                style: TextStyle(
-                  color: isMe ? Colors.white : AppColors.textPrimary,
-                  fontSize: 14,
-                ),
-              ),
-            const SizedBox(height: 4),
-            Text(
-              timeStr,
-              style: TextStyle(
-                color: isMe ? Colors.white70 : AppColors.textLight,
-                fontSize: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Quoted Reply Banner if present
+                  if (msg.replyTo != null && msg.replyTo!.isNotEmpty) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border(left: BorderSide(color: isMe ? Colors.white : AppColors.primary, width: 3)),
+                      ),
+                      child: Text(
+                        'Replying to: ${msg.replyTo}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isMe ? Colors.white70 : AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+
+                  // Image Attachment if present
+                  if (msg.messageType == 'image' && mediaUrl != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        mediaUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const SizedBox(
+                            height: 150,
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+
+                  // Video Attachment if present
+                  if (msg.messageType == 'video' && mediaUrl != null) ...[
+                    Container(
+                      height: 180,
+                      width: 220,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                              child: const Text('Video Message', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+
+                  // Text Content & Timestamp Row
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (msg.content != null && msg.content!.isNotEmpty && msg.content != '📷 [Photo]' && msg.content != '🎬 [Video]')
+                        Flexible(
+                          child: Text(
+                            msg.content!,
+                            style: TextStyle(
+                              color: msg.messageType == 'recalled' ? AppColors.textLight : (isMe ? Colors.white : AppColors.textPrimary),
+                              fontSize: 14,
+                              fontStyle: msg.messageType == 'recalled' ? FontStyle.italic : FontStyle.normal,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          timeStr,
+                          style: TextStyle(
+                            color: isMe ? Colors.white70 : AppColors.textLight,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+            if (msg.reaction != null && msg.reaction!.isNotEmpty)
+              Positioned(
+                bottom: -8,
+                right: isMe ? 8 : null,
+                left: isMe ? null : 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: Text(msg.reaction!, style: const TextStyle(fontSize: 12)),
+                ),
+              ),
           ],
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart' as dio;
 import '../app/theme/app_colors.dart';
 import '../core/constants/api_constants.dart';
 import '../models/user_model.dart';
@@ -205,7 +206,7 @@ class AuthController extends GetxController {
 
       final GoogleSignIn googleSignIn = kIsWeb
           ? GoogleSignIn(
-              clientId: '752772790267-skf4vk0n9o5bqdn4d3toudnt83fgs566.apps.googleusercontent.com',
+              clientId: '752772790267-mndhdtnv9ok555qemvci2cg8cm650b7g.apps.googleusercontent.com',
               scopes: ['email', 'profile'],
             )
           : GoogleSignIn(
@@ -551,7 +552,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // Upload Photo for Onboarding Grid
+  // Upload Photo for Onboarding Grid -> Publishes as a Public Moment (Post)
   Future<bool> uploadOnboardingPhoto(int index) async {
     if (currentUser.value == null) return false;
 
@@ -570,37 +571,58 @@ class AuthController extends GetxController {
       
       final bytes = await image.readAsBytes();
       
-      final response = await _authService.uploadUserPhoto(
-        userId: currentUser.value!.id,
-        imageBytes: bytes.toList(),
-        fileName: image.name,
-        isProfile: index == 0, // First photo is profile by default
-        sortOrder: index,
+      final formData = dio.FormData.fromMap({
+        'user_id': currentUser.value!.id,
+        'content': '', // Optional / empty content
+        'status': 1,   // Public moment
+        'images[]': dio.MultipartFile.fromBytes(bytes.toList(), filename: image.name),
+      });
+
+      final response = await apiService.post(
+        ApiConstants.createPost,
+        data: formData,
       );
 
-      if (response['success'] == true) {
-        // Add to local list or update if exists
-        final newPhoto = response['data'];
+      if (response.data['success'] == true) {
+        final postData = response.data['data'];
+        String photoUrl = '';
+        if (postData != null && postData['images'] != null && (postData['images'] as List).isNotEmpty) {
+          photoUrl = postData['images'][0]['photo_url'] ?? '';
+        } else if (postData != null && postData['image_url'] != null) {
+          photoUrl = postData['image_url'];
+        }
+
+        final newPhoto = {
+          'sort_order': index,
+          'url': photoUrl,
+        };
         
         // Remove existing photo at this index if any
-        userPhotos.removeWhere((p) => p['sort_order'] == index);
+        userPhotos.removeWhere((p) => (p['sort_order'] ?? 0) == index);
         userPhotos.add(newPhoto);
-        userPhotos.sort((a, b) => a['sort_order'].compareTo(b['sort_order']));
+        userPhotos.sort((a, b) => ((a['sort_order'] ?? 0) as int).compareTo((b['sort_order'] ?? 0) as int));
 
         // If it was the first photo, update profile_photo in currentUser
-        if (index == 0) {
+        if (index == 0 && photoUrl.isNotEmpty) {
           currentUser.value = UserModel.fromJson({
             ...currentUser.value!.toJson(),
-            'profile_photo': newPhoto['url'],
+            'profile_photo': photoUrl,
           });
         }
         
         return true;
       } else {
-        throw response['message'] ?? 'Upload failed';
+        throw response.data['message'] ?? 'Upload failed';
       }
     } catch (e) {
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      errorMessage.value = e.toString();
+      Get.snackbar(
+        'Error',
+        'Failed to upload photo: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       isLoading.value = false;
@@ -691,8 +713,9 @@ class AuthController extends GetxController {
 
   // Fetch Public Profile of any user
   Future<UserModel?> fetchUserProfile(String userId) async {
+    final myId = currentUser.value?.id;
     try {
-      final response = await _authService.getUserProfile(userId);
+      final response = await _authService.getUserProfile(userId, viewerId: myId);
       if (response['success'] == true) {
         return UserModel.fromJson(response['data']);
       }

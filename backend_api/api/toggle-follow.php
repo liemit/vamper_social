@@ -36,6 +36,25 @@ try {
         $stmt_ins->execute();
         $is_following = true;
         $message = "Followed successfully";
+
+        // Insert notification
+        try {
+            $db->exec("CREATE TABLE IF NOT EXISTS notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                sender_id INT NULL,
+                type VARCHAR(50) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                body TEXT NOT NULL,
+                is_read INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+            $notifStmt = $db->prepare("INSERT INTO notifications (user_id, sender_id, type, title, body, is_read, created_at)
+                                       VALUES (:uid, :sid, 'follow', 'New Follower', 'Someone started following you!', 0, NOW())");
+            $notifStmt->execute([':uid' => $data->followed_id, ':sid' => $data->follower_id]);
+        } catch (Exception $e) {}
     }
 
     http_response_code(200);

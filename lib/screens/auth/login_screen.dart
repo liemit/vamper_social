@@ -234,7 +234,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Divider
+                        // Divider & Social Button (Commented out temporarily)
+                        /*
                         FadeInUp(
                           duration: const Duration(milliseconds: 500),
                           delay: const Duration(milliseconds: 400),
@@ -268,7 +269,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 20),
 
-                        // Social Button (Google Sign-In)
                         FadeInUp(
                           duration: const Duration(milliseconds: 500),
                           delay: const Duration(milliseconds: 450),
@@ -281,6 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
 
                         const SizedBox(height: 24),
+                        */
 
                         // Register Link
                         FadeInUp(

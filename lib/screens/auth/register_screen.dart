@@ -342,7 +342,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                         const SizedBox(height: 28),
 
-                        // Divider
+                        // Divider & Social Button (Commented out temporarily)
+                        /*
                         FadeInUp(
                           duration: const Duration(milliseconds: 600),
                           delay: const Duration(milliseconds: 800),
@@ -375,7 +376,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Social Button (Google Sign-In)
                         FadeInUp(
                           duration: const Duration(milliseconds: 600),
                           delay: const Duration(milliseconds: 900),
@@ -388,6 +388,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
 
                         const SizedBox(height: 28),
+                        */
 
                         // Login Link
                         FadeInUp(

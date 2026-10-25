@@ -3,9 +3,11 @@ class MessageModel {
   final int conversationId;
   final String senderId;
   final String receiverId;
-  final String messageType; // 'text', 'image'
+  final String messageType; // 'text', 'image', 'video', 'recalled'
   final String? content;
   final String? mediaUrl;
+  final String? replyTo;
+  final String? reaction;
   final bool isRead;
   final DateTime createdAt;
 
@@ -17,6 +19,8 @@ class MessageModel {
     required this.messageType,
     this.content,
     this.mediaUrl,
+    this.replyTo,
+    this.reaction,
     required this.isRead,
     required this.createdAt,
   });
@@ -30,6 +34,8 @@ class MessageModel {
       messageType: json['message_type'] ?? 'text',
       content: json['content'],
       mediaUrl: json['media_url'],
+      replyTo: json['reply_to'],
+      reaction: json['reaction'],
       isRead: json['is_read'] == 1 || json['is_read'] == true,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );

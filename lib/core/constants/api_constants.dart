@@ -3,16 +3,7 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   // Base URL cho Server PHP trên ổ D (Laragon) qua tên miền riêng vamper.xyz
   static String get baseUrl {
-    if (kIsWeb) {
-      final String origin = Uri.base.origin;
-      // Nếu đang debug web (localhost:port), ta vẫn gọi API về server Laragon (localhost/vamper_api)
-      if (origin.contains('localhost')) {
-        return 'http://localhost/vamper_api/api';
-      }
-      // Khi đã deploy lên cùng server
-      return '/vamper_api/api';
-    }
-    // Cho máy thật / Emulator qua Cloudflare Tunnel (vamper.xyz)
+    // Luôn sử dụng tên miền công cộng vamper.xyz cho cả Web Debug lẫn Máy thật / Emulator
     return 'https://vamper.xyz/vamper_api/api';
   }
   

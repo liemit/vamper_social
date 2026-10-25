@@ -64,6 +64,48 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     }
   }
 
+  void _blockUser() async {
+    final myId = _authController.currentUser.value?.id;
+    if (myId == null) return;
+
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Block User 🚫'),
+        content: Text('Are you sure you want to block ${_viewedUser.value?.fullName ?? 'this user'}? They will be permanently blocked from viewing your profile and joining your party rooms.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Get.back();
+              try {
+                final response = await _authController.apiService.post(
+                  '${ApiConstants.baseUrl}/block-user.php',
+                  data: {
+                    'blocker_id': myId,
+                    'blocked_id': widget.userId,
+                    'action': 'block',
+                  },
+                );
+                if (response.data['success'] == true) {
+                  Get.back(); // return to previous screen
+                  Get.snackbar('Blocked', 'User has been permanently blocked', snackPosition: SnackPosition.BOTTOM);
+                }
+              } catch (e) {
+                print('Error blocking user: $e');
+              }
+            },
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -78,8 +120,17 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
       final user = _viewedUser.value;
       if (user == null) {
         return Scaffold(
-          appBar: AppBar(),
-          body: const Center(child: Text('User not found')),
+          appBar: AppBar(title: const Text('Profile Unavailable')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.block, size: 80, color: AppColors.error),
+                SizedBox(height: 16),
+                Text('This profile is unavailable due to user blocking.', style: TextStyle(fontSize: 16, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
         );
       }
 
@@ -108,6 +159,16 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.block, color: Colors.redAccent),
+                  tooltip: 'Block User',
+                  onPressed: _blockUser,
+                ),
+              ),
+          ],
+        ),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(

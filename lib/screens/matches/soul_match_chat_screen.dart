@@ -66,16 +66,42 @@ class _SoulMatchChatScreenState extends State<SoulMatchChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_msgController.text.trim().isEmpty) return;
-    setState(() {
-      _messages.add({
-        'sender': 'me',
-        'text': _msgController.text.trim(),
-        'time': DateTime.now(),
-      });
-    });
+  void _sendMessage() async {
+    final text = _msgController.text.trim();
+    if (text.isEmpty) return;
+
+    final AuthController authController = Get.find<AuthController>();
+    final userId = authController.currentUser.value?.id;
+    final partnerId = widget.partner['id'].toString();
+    if (userId == null) return;
+
     _msgController.clear();
+
+    try {
+      final response = await authController.apiService.post(
+        ApiConstants.sendMessage,
+        data: {
+          'sender_id': userId,
+          'receiver_id': partnerId,
+          'content': text,
+        },
+      );
+
+      if (response.data['success'] == true) {
+        setState(() {
+          _messages.add({
+            'sender': 'me',
+            'text': text,
+            'time': DateTime.now(),
+          });
+        });
+      } else {
+        Get.snackbar('Error', response.data['message'] ?? 'Could not send message', snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      print('Error sending soul match message: $e');
+      Get.snackbar('Error', 'Failed to send message', snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
   Future<void> _sendAction(String action) async {

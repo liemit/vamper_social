@@ -98,11 +98,14 @@ class AuthService {
   }
 
   // Get Any User Profile
-  Future<Map<String, dynamic>> getUserProfile(String userId) async {
+  Future<Map<String, dynamic>> getUserProfile(String userId, {String? viewerId}) async {
     try {
       final response = await _apiService.get(
         ApiConstants.getProfile,
-        params: {'user_id': userId},
+        params: {
+          'user_id': userId,
+          if (viewerId != null) 'viewer_id': viewerId,
+        },
       );
 
       if (response.data['success'] == true) {

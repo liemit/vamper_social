@@ -18,6 +18,10 @@ import 'swipe_cards_screen.dart';
 import '../wallet/coin_shop_screen.dart';
 import '../discovery/search_screen.dart';
 import '../chat/conversations_screen.dart';
+import '../../controllers/chat_controller.dart';
+import '../matches/create_party_screen.dart';
+import '../matches/party_room_screen.dart';
+import 'party_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,10 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final AuthController _authController = Get.find<AuthController>();
   final DiscoveryController _discoveryController = Get.put(DiscoveryController());
+  final ChatController _chatController = Get.put(ChatController());
 
   final List<Widget> _screens = [
     const DiscoveryTab(),
     const MatchesTab(),
+    const PartyTab(),
     const ConversationsScreen(),
     const ProfileTab(),
   ];
@@ -134,6 +140,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   isActive: _currentIndex == 1,
                   onTap: () => setState(() => _currentIndex = 1),
                 ),
+                _NavBarItem(
+                  icon: Icons.celebration_outlined,
+                  activeIcon: Icons.celebration,
+                  label: 'Party',
+                  isActive: _currentIndex == 2,
+                  onTap: () => setState(() => _currentIndex = 2),
+                ),
                 
                 // Central Add Button
                 Padding(
@@ -142,8 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => Get.to(() => const CreatePostScreen()),
                     borderRadius: BorderRadius.circular(15),
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(15),
@@ -155,24 +168,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 28),
+                      child: const Icon(Icons.add, color: Colors.white, size: 26),
                     ),
                   ),
                 ),
 
-                _NavBarItem(
+                Obx(() => _NavBarItem(
                   icon: Icons.chat_bubble_outline,
                   activeIcon: Icons.chat_bubble,
                   label: 'Messages',
-                  isActive: _currentIndex == 2,
-                  onTap: () => setState(() => _currentIndex = 2),
-                ),
+                  isActive: _currentIndex == 3,
+                  hasRedDot: _chatController.hasUnreadMessages,
+                  onTap: () => setState(() => _currentIndex = 3),
+                )),
                 _NavBarItem(
                   icon: Icons.person_outline,
                   activeIcon: Icons.person,
                   label: 'Profile',
-                  isActive: _currentIndex == 3,
-                  onTap: () => setState(() => _currentIndex = 3),
+                  isActive: _currentIndex == 4,
+                  onTap: () => setState(() => _currentIndex = 4),
                 ),
               ],
             ),
@@ -189,6 +203,7 @@ class _NavBarItem extends StatelessWidget {
   final String label;
   final bool isActive;
   final VoidCallback onTap;
+  final bool hasRedDot;
 
   const _NavBarItem({
     required this.icon,
@@ -196,6 +211,7 @@ class _NavBarItem extends StatelessWidget {
     required this.label,
     required this.isActive,
     required this.onTap,
+    this.hasRedDot = false,
   });
 
   @override
@@ -209,23 +225,41 @@ class _NavBarItem extends StatelessWidget {
           gradient: isActive ? AppColors.primaryGradient : null,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: isActive ? Colors.white : AppColors.textLight,
-              size: 24,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isActive ? activeIcon : icon,
+                  color: isActive ? Colors.white : AppColors.textLight,
+                  size: 24,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    color: isActive ? Colors.white : AppColors.textLight,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? Colors.white : AppColors.textLight,
+            if (hasRedDot && !isActive)
+              Positioned(
+                right: 4,
+                top: 2,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
