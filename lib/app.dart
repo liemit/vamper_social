@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'app/theme/app_colors.dart';
 import 'screens/splash/splash_screen.dart';
@@ -8,7 +7,6 @@ import 'screens/home/home_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 // Note: We will create admin_login_screen.dart shortly
 import 'screens/admin/admin_login_screen.dart';
-import 'controllers/auth_controller.dart';
 
 class VamperApp extends StatelessWidget {
   const VamperApp({super.key});

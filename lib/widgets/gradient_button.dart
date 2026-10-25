@@ -33,14 +33,14 @@ class GradientButton extends StatelessWidget {
             ? (gradient ?? AppColors.primaryGradient)
             : LinearGradient(
                 colors: [
-                  AppColors.textLight.withOpacity(0.5),
-                  AppColors.textLight.withOpacity(0.5),
+                  AppColors.textLight.withValues(alpha: 0.5),
+                  AppColors.textLight.withValues(alpha: 0.5),
                 ],
               ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: isEnabled ? [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

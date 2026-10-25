@@ -297,9 +297,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: Container(
                       height: 54, width: 54,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
                       child: _isDetectingLocation
                           ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))

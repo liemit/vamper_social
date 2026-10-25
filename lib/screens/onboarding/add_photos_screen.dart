@@ -147,7 +147,7 @@ class _PhotoSlot extends StatelessWidget {
         onTap: isUploading ? null : () => authController.uploadOnboardingPhoto(index),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.border.withOpacity(0.3),
+            color: AppColors.border.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border, width: 1),
             image: photo != null

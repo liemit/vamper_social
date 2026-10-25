@@ -122,7 +122,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   final photo = _authController.currentUser.value?.profilePhoto;
                   return CircleAvatar(
                     backgroundImage: photo != null ? NetworkImage(_authController.getFullImageUrl(photo)!) : null,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     child: photo == null ? const Icon(Icons.person, color: Colors.white) : null,
                   );
                 }),
@@ -255,7 +255,7 @@ class _ImagePreviewCard extends StatelessWidget {
             child: Container(
               width: double.infinity,
               height: double.infinity,
-              color: AppColors.border.withOpacity(0.2),
+              color: AppColors.border.withValues(alpha: 0.2),
               child: url != null
                   ? Image.network(url!, fit: BoxFit.cover, alignment: alignment)
                   : (kIsWeb ? Image.network(file!.path, fit: BoxFit.cover, alignment: alignment) : Image.file(file!, fit: BoxFit.cover, alignment: alignment)),

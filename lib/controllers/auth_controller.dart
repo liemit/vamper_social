@@ -791,7 +791,7 @@ class AuthController extends GetxController {
       GestureDetector(
         onTap: () => Get.back(),
         child: Container(
-          color: Colors.black.withOpacity(0.9),
+          color: Colors.black.withValues(alpha: 0.9),
           child: Stack(
             children: [
               Center(
@@ -815,7 +815,7 @@ class AuthController extends GetxController {
                 right: 20,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(

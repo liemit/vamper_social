@@ -30,7 +30,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   
   String? _selectedGender;
   DateTime? _selectedDate;
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {

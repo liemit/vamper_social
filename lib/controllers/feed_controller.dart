@@ -163,8 +163,8 @@ class FeedController extends GetxController {
       final formData = dio.FormData.fromMap({
         'user_id': userId,
         'post_id': postId,
-        if (content != null) 'content': content,
-        if (status != null) 'status': status,
+        'content': ?content,
+        'status': ?status,
         if (deleteImageUrls != null) 'delete_photos': jsonEncode(deleteImageUrls),
         if (newAlignments != null) 'new_alignments': jsonEncode(newAlignments),
         if (updateAlignments != null) 'update_alignments': jsonEncode(updateAlignments),
@@ -320,7 +320,7 @@ class FeedController extends GetxController {
           'user_id': user.id,
           'post_id': postId,
           'comment': text.trim(),
-          if (parentId != null) 'parent_id': parentId,
+          'parent_id': ?parentId,
         },
       );
 

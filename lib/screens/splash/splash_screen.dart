@@ -1,13 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:animate_do/animate_do.dart';
 import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 import '../../widgets/vamper_logo.dart';
 import '../../controllers/auth_controller.dart';
-import '../auth/login_screen.dart';
-import '../home/home_screen.dart';
-import '../admin/admin_dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

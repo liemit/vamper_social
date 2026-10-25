@@ -75,9 +75,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.1),
+                  color: Colors.amber.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.amber.withOpacity(0.5), width: 1),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1),
                 ),
                 child: Row(
                   children: [
@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(15),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -413,12 +413,12 @@ class MatchesTab extends StatelessWidget {
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                    BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8)),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    Positioned(right: -20, bottom: -20, child: Icon(Icons.favorite, size: 150, color: Colors.white.withOpacity(0.2))),
+                    Positioned(right: -20, bottom: -20, child: Icon(Icons.favorite, size: 150, color: Colors.white.withValues(alpha: 0.2))),
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
@@ -427,7 +427,7 @@ class MatchesTab extends StatelessWidget {
                         children: [
                           const Text('Start Swiping', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          Text('Find people near you right now', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
+                          Text('Find people near you right now', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
                         ],
                       ),
                     ),
@@ -448,7 +448,7 @@ class MatchesTab extends StatelessWidget {
                 return Container(
                   margin: const EdgeInsets.only(right: 16),
                   width: 80,
-                  decoration: BoxDecoration(color: AppColors.border.withOpacity(0.3), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: AppColors.border.withValues(alpha: 0.3), shape: BoxShape.circle),
                   child: const Center(child: Icon(Icons.person, color: AppColors.textLight, size: 40)),
                 );
               },
@@ -477,9 +477,9 @@ class _MatchGameButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
           ),
           child: Column(
             children: [
@@ -543,7 +543,7 @@ class ProfileTab extends StatelessWidget {
                   gradient: AppColors.primaryGradient,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+                  boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))],
                 ),
                 child: ClipOval(
                   child: photoUrl != null
@@ -635,7 +635,7 @@ class _ProfileMenuItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [

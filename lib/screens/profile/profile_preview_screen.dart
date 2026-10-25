@@ -4,10 +4,10 @@ import 'package:animate_do/animate_do.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/feed_controller.dart';
+import '../../core/constants/api_constants.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../widgets/post_card.dart';
-import '../home/home_screen.dart';
 import '../chat/chat_screen.dart';
 import '../../models/conversation_model.dart';
 
@@ -127,7 +127,14 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
               children: const [
                 Icon(Icons.block, size: 80, color: AppColors.error),
                 SizedBox(height: 16),
-                Text('This profile is unavailable due to user blocking.', style: TextStyle(fontSize: 16, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                Text(
+                  'This profile is unavailable due to user blocking.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -135,7 +142,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
       }
 
       final bool isSelf = user.id == _authController.currentUser.value?.id;
-      
+
       return Scaffold(
         backgroundColor: Colors.white,
         extendBodyBehindAppBar: true,
@@ -145,7 +152,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
           leading: Container(
             margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -158,7 +165,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -169,28 +176,20 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
               ),
           ],
         ),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ),
-          ],
-        ),
         body: Stack(
           children: [
             SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Header Photo
                   Stack(
                     children: [
                       GestureDetector(
                         onTap: () {
                           final photoUrl = _authController.getFullImageUrl(user.profilePhoto);
-                          if (photoUrl != null) _authController.showImageDetail(photoUrl);
+                          if (photoUrl != null) {
+                            _authController.showImageDetail(photoUrl);
+                          }
                         },
                         child: Hero(
                           tag: 'profile_photo_${user.id}',
@@ -198,23 +197,25 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             height: size.height * 0.6,
                             width: double.infinity,
                             decoration: BoxDecoration(
-                              color: AppColors.border.withOpacity(0.1),
+                              color: AppColors.border.withValues(alpha: 0.1),
                             ),
-                            child: Builder(builder: (context) {
-                              final photoUrl = _authController.getFullImageUrl(user.profilePhoto);
-                              if (photoUrl != null) {
-                                return Image.network(
-                                  photoUrl,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(child: CircularProgressIndicator());
-                                  },
-                                  errorBuilder: (context, error, stackTrace) => _buildPlaceholderIcon(),
-                                );
-                              }
-                              return _buildPlaceholderIcon();
-                            }),
+                            child: Builder(
+                              builder: (context) {
+                                final photoUrl = _authController.getFullImageUrl(user.profilePhoto);
+                                if (photoUrl != null) {
+                                  return Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const Center(child: CircularProgressIndicator());
+                                    },
+                                    errorBuilder: (context, error, stackTrace) => _buildPlaceholderIcon(),
+                                  );
+                                }
+                                return _buildPlaceholderIcon();
+                              },
+                            ),
                           ),
                         ),
                       ),
@@ -226,8 +227,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.1),
-                                Colors.black.withOpacity(0.8),
+                                Colors.black.withValues(alpha: 0.1),
+                                Colors.black.withValues(alpha: 0.8),
                               ],
                               stops: const [0.6, 0.8, 1.0],
                             ),
@@ -247,11 +248,22 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                                 children: [
                                   Text(
                                     user.fullName,
-                                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   if (user.age != null) ...[
                                     const SizedBox(width: 8),
-                                    Text('${user.age}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w400)),
+                                    Text(
+                                      '${user.age}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
                                   ],
                                   const SizedBox(width: 8),
                                   if (user.isVerified)
@@ -263,7 +275,10 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                                   children: [
                                     const Icon(Icons.location_on, color: Colors.white70, size: 16),
                                     const SizedBox(width: 4),
-                                    Text(user.location!, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                                    Text(
+                                      user.location!,
+                                      style: const TextStyle(color: Colors.white70, fontSize: 16),
+                                    ),
                                   ],
                                 ),
                             ],
@@ -272,50 +287,66 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
-
-                  // 2. About
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('About Me', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        const Text(
+                          'About Me',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           (user.bio != null && user.bio!.isNotEmpty) ? user.bio! : "This user hasn't added a bio yet.",
-                          style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 32),
-
-                  // 3. Basics
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Basics', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        const Text(
+                          'Basics',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         _buildInfoRow(Icons.person_outline, 'Gender', user.gender?.capitalizeFirst ?? 'Not specified'),
                         _buildInfoRow(Icons.cake_outlined, 'Birthday', user.dateOfBirth ?? 'Not specified'),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 32),
-
-                  // 4. Moments (Posts)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Moments', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        const Text(
+                          'Moments',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         if (_userPosts.isEmpty)
                           _buildEmptyPlaceholder('No moments shared yet.')
@@ -329,13 +360,10 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 120), // Padding for sticky buttons
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
-
-            // Sticky Interaction Buttons (If not self)
             if (!isSelf)
               Positioned(
                 bottom: 30,
@@ -352,7 +380,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             color: _isFollowing.value ? Colors.white : AppColors.primary,
                             borderRadius: BorderRadius.circular(28),
                             border: Border.all(color: AppColors.primary, width: 2),
-                            boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8))],
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
                           child: Center(
                             child: Text(
@@ -374,7 +408,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                       decoration: BoxDecoration(
                         gradient: AppColors.primaryGradient,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
@@ -408,7 +448,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     return Container(
       padding: const EdgeInsets.all(32),
       width: double.infinity,
-      decoration: BoxDecoration(color: AppColors.border.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: AppColors.border.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
       child: Column(
         children: [
           const Icon(Icons.layers_clear_outlined, color: AppColors.textLight, size: 40),
@@ -420,7 +460,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   }
 
   Widget _buildPlaceholderIcon() {
-    return Center(child: Icon(Icons.person, size: 100, color: AppColors.textLight.withOpacity(0.5)));
+    return Center(child: Icon(Icons.person, size: 100, color: AppColors.textLight.withValues(alpha: 0.5)));
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {

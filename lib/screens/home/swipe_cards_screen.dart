@@ -142,7 +142,13 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        title: const Text('Lover Card', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Lover Card',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -159,12 +165,25 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
                     children: [
                       const Icon(Icons.style_rounded, size: 70, color: AppColors.textLight),
                       const SizedBox(height: 16),
-                      const Text('No more cards right now!', style: TextStyle(fontSize: 18, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'No more cards right now!',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      const Text('Try refreshing or changing filters.', style: TextStyle(color: AppColors.textLight)),
+                      const Text(
+                        'Try refreshing or changing filters.',
+                        style: TextStyle(color: AppColors.textLight),
+                      ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
                         onPressed: _fetchCandidates,
                         icon: const Icon(Icons.refresh),
                         label: const Text('Refresh Cards'),
@@ -179,15 +198,14 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            if (_candidates.length > 1) _buildCard(_candidates[1], isTop: false),
+                            if (_candidates.length > 1)
+                              _buildCard(_candidates[1], isTop: false),
                             _buildTopCard(_candidates[0]),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Action Buttons (Pass, Super Like, Like)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 24),
                       child: Row(

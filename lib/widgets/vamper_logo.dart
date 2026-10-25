@@ -90,7 +90,7 @@ class VamperLogoLarge extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 40,
                 offset: const Offset(0, 20),
               ),
@@ -140,7 +140,7 @@ class VamperLogoLarge extends StatelessWidget {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w500,
-            color: Colors.white.withOpacity(0.95),  // Trắng với opacity
+            color: Colors.white.withValues(alpha: 0.95),  // Trắng với opacity
             letterSpacing: 0.5,
           ),
         ),

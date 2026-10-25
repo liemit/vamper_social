@@ -82,7 +82,7 @@ class _RepositionImageScreenState extends State<RepositionImageScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.8), blurRadius: 40),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 40),
                       ],
                     ),
                     child: ClipRRect(
@@ -127,7 +127,7 @@ class _RepositionImageScreenState extends State<RepositionImageScreen> {
                       width: double.infinity,
                       height: 300,
                       decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1),
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
@@ -143,7 +143,7 @@ class _RepositionImageScreenState extends State<RepositionImageScreen> {
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, -5))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(0, -5))],
             ),
             child: Column(
               children: [
@@ -191,7 +191,7 @@ class _RepositionImageScreenState extends State<RepositionImageScreen> {
             activeTrackColor: AppColors.primary,
             inactiveTrackColor: Colors.white10,
             thumbColor: Colors.white,
-            overlayColor: AppColors.primary.withOpacity(0.2),
+            overlayColor: AppColors.primary.withValues(alpha: 0.2),
             trackHeight: 3,
           ),
           child: Slider(value: value, min: min, max: max, onChanged: onChanged),
@@ -226,7 +226,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
+      ..color = Colors.white.withValues(alpha: 0.2)
       ..strokeWidth = 1;
 
     // Vertical lines

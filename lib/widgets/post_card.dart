@@ -30,7 +30,7 @@ class PostCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -55,7 +55,7 @@ class PostCard extends StatelessWidget {
                             ? Image.network(
                                 authController.getFullImageUrl(post.authorPhoto)!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
+                                errorBuilder: (_, _, _) => const Icon(Icons.person, color: Colors.white),
                               )
                             : const Icon(Icons.person, color: Colors.white),
                       ),
@@ -349,12 +349,12 @@ class _ImageCarouselState extends State<_ImageCarousel> {
                               loadingBuilder: (context, child, loadingProgress) {
                                 if (loadingProgress == null) return child;
                                 return Container(
-                                  color: AppColors.border.withOpacity(0.1),
+                                  color: AppColors.border.withValues(alpha: 0.1),
                                   child: const Center(child: CircularProgressIndicator()),
                                 );
                               },
                               errorBuilder: (context, error, stackTrace) => Container(
-                                color: AppColors.border.withOpacity(0.1),
+                                color: AppColors.border.withValues(alpha: 0.1),
                                 child: const Icon(Icons.broken_image, color: Colors.grey),
                               ),
                             ),
@@ -380,7 +380,7 @@ class _ImageCarouselState extends State<_ImageCarousel> {
                   height: 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _currentPage == index ? AppColors.primary : AppColors.textLight.withOpacity(0.5),
+                    color: _currentPage == index ? AppColors.primary : AppColors.textLight.withValues(alpha: 0.5),
                   ),
                 ),
               ),

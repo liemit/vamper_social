@@ -75,7 +75,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border.withOpacity(0.5))),
+              border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -130,7 +130,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
           Obx(() => _replyingTo.value != null
               ? Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: AppColors.border.withOpacity(0.1),
+                  color: AppColors.border.withValues(alpha: 0.1),
                   child: Row(
                     children: [
                       const Icon(Icons.reply, size: 16, color: AppColors.textLight),
@@ -160,7 +160,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
             ),
             child: Row(
               children: [
@@ -181,7 +181,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                           ? Image.network(
                               _authController.getFullImageUrl(_authController.currentUser.value!.profilePhoto)!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 20, color: Colors.white),
+                              errorBuilder: (_, _, _) => const Icon(Icons.person, size: 20, color: Colors.white),
                             )
                           : const Icon(Icons.person, size: 20, color: Colors.white),
                     ),
@@ -199,7 +199,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: AppColors.border.withOpacity(0.2),
+                      fillColor: AppColors.border.withValues(alpha: 0.2),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
@@ -251,7 +251,7 @@ class _CommentTile extends StatelessWidget {
                     ? Image.network(
                         authController.getFullImageUrl(comment.authorPhoto)!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(Icons.person, size: isReply ? 14 : 20, color: Colors.white),
+                        errorBuilder: (_, _, _) => Icon(Icons.person, size: isReply ? 14 : 20, color: Colors.white),
                       )
                     : Icon(Icons.person, size: isReply ? 14 : 20, color: Colors.white),
               ),
@@ -265,7 +265,7 @@ class _CommentTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.border.withOpacity(0.15),
+                    color: AppColors.border.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(

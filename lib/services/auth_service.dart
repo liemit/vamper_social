@@ -135,14 +135,14 @@ class AuthService {
         ApiConstants.updateProfile,
         data: {
           'user_id': userId,
-          if (fullName != null) 'full_name': fullName,
-          if (phone != null) 'phone': phone,
-          if (gender != null) 'gender': gender,
-          if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
-          if (bio != null) 'bio': bio,
-          if (location != null) 'location': location,
-          if (latitude != null) 'latitude': latitude,
-          if (longitude != null) 'longitude': longitude,
+          'full_name': ?fullName,
+          'phone': ?phone,
+          'gender': ?gender,
+          'date_of_birth': ?dateOfBirth,
+          'bio': ?bio,
+          'location': ?location,
+          'latitude': ?latitude,
+          'longitude': ?longitude,
         },
       );
 

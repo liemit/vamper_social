@@ -102,14 +102,14 @@ class AdminDashboardScreen extends StatelessWidget {
                           DataCell(Text(user.email)),
                           DataCell(Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: user.role == 'admin' ? Colors.purple.withOpacity(0.1) : Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                            decoration: BoxDecoration(color: user.role == 'admin' ? Colors.purple.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                             child: Text(user.role.toUpperCase(), style: TextStyle(color: user.role == 'admin' ? Colors.purple : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
                           )),
                           DataCell(Text(user.coins.toString())),
                           DataCell(Switch(
                             value: user.isActive,
                             onChanged: (val) => controller.toggleUserStatus(user.id),
-                            activeColor: Colors.green,
+                            activeThumbColor: Colors.green,
                           )),
                           DataCell(Row(
                             children: [
