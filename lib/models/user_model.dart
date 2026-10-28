@@ -16,6 +16,8 @@ class UserModel {
   final bool isActive;
   final String createdAt;
   final String? updatedAt;
+  final int? activeProfileFrameId;
+  final int? activePartyFrameId;
 
   UserModel({
     required this.id,
@@ -35,6 +37,8 @@ class UserModel {
     required this.isActive,
     required this.createdAt,
     this.updatedAt,
+    this.activeProfileFrameId,
+    this.activePartyFrameId,
   });
 
   int? get age {
@@ -50,6 +54,50 @@ class UserModel {
     } catch (_) {
       return null;
     }
+  }
+
+  UserModel copyWith({
+    String? id,
+    String? fullName,
+    String? email,
+    String? role,
+    String? phone,
+    String? gender,
+    String? dateOfBirth,
+    String? bio,
+    String? profilePhoto,
+    String? location,
+    String? latitude,
+    String? longitude,
+    bool? isVerified,
+    int? coins,
+    bool? isActive,
+    String? createdAt,
+    String? updatedAt,
+    int? activeProfileFrameId,
+    int? activePartyFrameId,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      phone: phone ?? this.phone,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      bio: bio ?? this.bio,
+      profilePhoto: profilePhoto ?? this.profilePhoto,
+      location: location ?? this.location,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      isVerified: isVerified ?? this.isVerified,
+      coins: coins ?? this.coins,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      activeProfileFrameId: activeProfileFrameId ?? this.activeProfileFrameId,
+      activePartyFrameId: activePartyFrameId ?? this.activePartyFrameId,
+    );
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -71,6 +119,8 @@ class UserModel {
       isActive: json['is_active'] == '1' || json['is_active'] == 1 || json['is_active'] == true,
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'],
+      activeProfileFrameId: json['active_profile_frame_id'] != null ? int.tryParse(json['active_profile_frame_id'].toString()) : null,
+      activePartyFrameId: json['active_party_frame_id'] != null ? int.tryParse(json['active_party_frame_id'].toString()) : null,
     );
   }
 
@@ -92,6 +142,8 @@ class UserModel {
       'is_active': isActive,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'active_profile_frame_id': activeProfileFrameId,
+      'active_party_frame_id': activePartyFrameId,
     };
   }
 }

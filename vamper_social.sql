@@ -1144,6 +1144,56 @@ ALTER TABLE `user_interests`
 --
 ALTER TABLE `user_photos`
   ADD CONSTRAINT `user_photos_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+-- --------------------------------------------------------
+
+--
+-- Bảng vật phẩm cửa hàng (Shop Items & User Items)
+--
+
+CREATE TABLE IF NOT EXISTS `shop_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('avatar','profile_frame','party_frame') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `image_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `price_coins` int NOT NULL DEFAULT 100,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `shop_items` (`id`, `name`, `type`, `image_url`, `price_coins`, `created_at`) VALUES
+(1, 'Khung Trắng Tối Giản', 'profile_frame', 'frame_white', 0, NOW()),
+(2, 'Khung Neon Xanh Biển', 'profile_frame', 'frame_blue', 0, NOW()),
+(3, 'Khung Lục Ngọc Minimal', 'profile_frame', 'frame_emerald', 0, NOW()),
+(4, 'Khung Cyberpunk Neon Glow', 'profile_frame', 'frame_neon', 150, NOW()),
+(5, 'Khung Hoàng Gia Vương Miện', 'profile_frame', 'frame_gold', 350, NOW()),
+(6, 'Khung Hào Quang Quỷ Lửa', 'profile_frame', 'frame_flame', 500, NOW()),
+(7, 'Khung Cổng Vũ Trụ Vamper', 'profile_frame', 'frame_galaxy', 750, NOW()),
+(8, 'Khung Rồng Đêm Huyền Thoại', 'profile_frame', 'frame_dragon', 1200, NOW()),
+(9, 'Khung Khán Phòng Cơ Bản', 'party_frame', 'party_simple', 0, NOW()),
+(10, 'Khung Tiệc Hồng Ngọt Ngào', 'party_frame', 'party_pink', 0, NOW()),
+(11, 'Khung Tiệc Hoàng Gia VIP', 'party_frame', 'party_royal', 250, NOW()),
+(12, 'Khung Sàn Disco Cyberpunk', 'party_frame', 'party_disco', 450, NOW()),
+(13, 'Khung Vũ Trường Nightclub', 'party_frame', 'party_club', 700, NOW()),
+(14, 'Khung Cung Điện Kim Cương', 'party_frame', 'party_palace', 1000, NOW()),
+(15, 'Avatar Nam Trẻ Trung', 'avatar', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200', 0, NOW()),
+(16, 'Avatar Nữ Anime Dễ Thương', 'avatar', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200', 0, NOW()),
+(17, 'Avatar Gamer Neon Boy', 'avatar', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200', 0, NOW()),
+(18, 'Avatar Hacker Cyberpunk', 'avatar', 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=200', 200, NOW()),
+(19, 'Avatar Quỷ Anime Neon', 'avatar', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200', 350, NOW()),
+(20, 'Avatar Mecha Fighter Robot', 'avatar', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200', 500, NOW()),
+(21, 'Avatar Chúa Tể Vampire Vàng', 'avatar', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200', 1000, NOW()),
+(22, 'Avatar Thiên Thần Ánh Sáng', 'avatar', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200', 1500, NOW());
+
+CREATE TABLE IF NOT EXISTS `user_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `item_id` int NOT NULL,
+  `purchased_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_item` (`user_id`,`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

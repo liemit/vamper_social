@@ -24,7 +24,7 @@ try {
 
     // Query user
     $query = "SELECT id, full_name, email, password, profile_photo, gender, 
-                     date_of_birth, bio, location, is_verified, coins, is_active, created_at
+                     date_of_birth, bio, location, is_verified, coins, is_active, created_at, active_profile_frame_id, active_party_frame_id
               FROM users WHERE email = :email LIMIT 1";
     
     $stmt = $db->prepare($query);

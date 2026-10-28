@@ -40,7 +40,7 @@ if (!empty($viewer_id) && $viewer_id != $user_id) {
 
 try {
     // Fetch public user data
-    $query = "SELECT id, full_name, profile_photo, gender, date_of_birth, bio, location, is_verified, coins, created_at
+    $query = "SELECT id, full_name, profile_photo, gender, date_of_birth, bio, location, is_verified, coins, created_at, active_profile_frame_id, active_party_frame_id
               FROM users
               WHERE id = :id LIMIT 1";
 

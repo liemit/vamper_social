@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 
 class PartyRoomScreen extends StatefulWidget {
   final Map<String, dynamic> party;
@@ -20,7 +21,10 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
 
   // 10 Seats State (Seat 0 = Host, Seats 1-9 = Participants)
   late List<Map<String, dynamic>?> _seats;
-  late int _viewerCount;
+  int get _viewerCount {
+    final seatedCount = _seats.where((s) => s != null).length;
+    return seatedCount > 0 ? seatedCount : 1;
+  }
   bool _isMuted = false;
   bool _isScreenSharing = false;
   String? _currentMusic;
@@ -29,15 +33,21 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   @override
   void initState() {
     super.initState();
-    _viewerCount = widget.party['participants_count'] ?? 1;
 
     // Initialize 10 seats
     _seats = List.filled(10, null);
+    
+    final currentUserId = _authController.currentUser.value?.id.toString();
+    final hostId = widget.party['host_id']?.toString();
+    final hostPhoto = (currentUserId != null && hostId != null && currentUserId == hostId)
+        ? _authController.currentUser.value?.profilePhoto
+        : widget.party['host_photo'];
+
     // Seat 0 is always Host
     _seats[0] = {
       'id': widget.party['host_id'],
       'name': widget.party['host_name'] ?? 'Host',
-      'photo': widget.party['host_photo'],
+      'photo': hostPhoto,
       'isHost': true,
       'isMuted': false,
     };
@@ -142,32 +152,16 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
         'isHost': false,
         'isMuted': false,
       };
-
-      _messages.add({
-        'user': 'System',
-        'text': '${user.fullName ?? 'Participant'} sat on Chair ${seatIndex + 1} 🪑',
-        'isSystem': true,
-      });
     });
-
-    Get.snackbar('Seat Taken 🎉', 'You are now on Chair ${seatIndex + 1}. Mic activated!', snackPosition: SnackPosition.BOTTOM);
   }
 
   void _leaveSeat() {
     final currentIndex = userSeatIndex;
     if (currentIndex == null || currentIndex == 0) return; // Host cannot leave host seat
 
-    final user = _authController.currentUser.value;
     setState(() {
       _seats[currentIndex] = null;
-      _messages.add({
-        'user': 'System',
-        'text': '${user?.fullName ?? 'Participant'} left Chair ${currentIndex + 1}',
-        'isSystem': true,
-      });
     });
-
-    Get.snackbar('Left Chair', 'You returned to the audience.', snackPosition: SnackPosition.BOTTOM);
   }
 
   void _blockUserInParty(String targetId, String targetName) async {
@@ -328,6 +322,70 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
     );
   }
 
+  void _showOnlineParticipants() {
+    final activeSeats = _seats.where((s) => s != null).toList();
+
+    Get.bottomSheet(
+      Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Online in Room (${activeSeats.length} seated)', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Get.back()),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 250,
+              child: ListView.builder(
+                itemCount: activeSeats.length,
+                itemBuilder: (context, index) {
+                  final seat = activeSeats[index]!;
+                  final photoUrl = _authController.getFullImageUrl(seat['photo']);
+                  return ListTile(
+                    leading: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: photoUrl == null ? AppColors.primaryGradient : null,
+                        shape: BoxShape.circle,
+                      ),
+                      child: ClipOval(
+                        child: photoUrl != null
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
+                                  child: const Icon(Icons.person, size: 24, color: Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.person, size: 24, color: Colors.white),
+                      ),
+                    ),
+                    title: Text(seat['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(index == 0 ? 'Host 👑' : 'Participant on Chair $index'),
+                    trailing: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -355,16 +413,20 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
             ),
           // Real-time Eye Viewer Count Badge
           Center(
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                children: [
-                  const Icon(Icons.remove_red_eye_rounded, color: Colors.amber, size: 14),
-                  const SizedBox(width: 4),
-                  Text('$_viewerCount', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
-                ],
+            child: InkWell(
+              onTap: _showOnlineParticipants,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.remove_red_eye_rounded, color: Colors.amber, size: 14),
+                    const SizedBox(width: 4),
+                    Text('$_viewerCount', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -438,30 +500,22 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                       Stack(
                         alignment: Alignment.center,
                         children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isOccupied ? Colors.pink.withOpacity(0.2) : Colors.white.withOpacity(0.05),
-                              border: Border.all(
-                                color: isHostSeat ? Colors.amber : (isOccupied ? Colors.pink : Colors.white30),
-                                width: isHostSeat ? 2 : 1,
-                              ),
-                            ),
-                            child: ClipOval(
-                              child: isOccupied
-                                  ? (photoUrl != null
-                                      ? Image.network(photoUrl, fit: BoxFit.cover)
-                                      : const Icon(Icons.person, color: Colors.white, size: 28))
-                                  : const Icon(Icons.add, color: Colors.white54, size: 22),
-                            ),
-                          ),
-                          if (isHostSeat)
-                            const Positioned(
-                              top: -2,
-                              child: Text('👑', style: TextStyle(fontSize: 12)),
-                            ),
+                          isOccupied
+                              ? UserAvatarWithFrame(
+                                  photoUrl: seat['photo'],
+                                  frameId: isHostSeat ? (_authController.currentUser.value?.activeProfileFrameId ?? widget.party['active_frame_id']) : null,
+                                  size: 50,
+                                )
+                              : Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withOpacity(0.05),
+                                    border: Border.all(color: Colors.white30, width: 1),
+                                  ),
+                                  child: const Icon(Icons.add, color: Colors.white54, size: 22),
+                                ),
                           if (isOccupied)
                             Positioned(
                               right: 0,

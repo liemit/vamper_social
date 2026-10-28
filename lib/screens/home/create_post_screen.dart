@@ -120,10 +120,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               children: [
                 Obx(() {
                   final photo = _authController.currentUser.value?.profilePhoto;
-                  return CircleAvatar(
-                    backgroundImage: photo != null ? NetworkImage(_authController.getFullImageUrl(photo)!) : null,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    child: photo == null ? const Icon(Icons.person, color: Colors.white) : null,
+                  final photoUrl = photo != null ? _authController.getFullImageUrl(photo) : null;
+                  return Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: photoUrl == null ? AppColors.primaryGradient : null,
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: photoUrl != null
+                          ? Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
+                                child: const Icon(Icons.person, size: 24, color: Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.person, size: 24, color: Colors.white),
+                    ),
                   );
                 }),
                 const SizedBox(width: 12),
@@ -255,7 +271,7 @@ class _ImagePreviewCard extends StatelessWidget {
             child: Container(
               width: double.infinity,
               height: double.infinity,
-              color: AppColors.border.withValues(alpha: 0.2),
+              color: AppColors.border.withOpacity(0.2),
               child: url != null
                   ? Image.network(url!, fit: BoxFit.cover, alignment: alignment)
                   : (kIsWeb ? Image.network(file!.path, fit: BoxFit.cover, alignment: alignment) : Image.file(file!, fit: BoxFit.cover, alignment: alignment)),

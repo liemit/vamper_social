@@ -22,6 +22,8 @@ import '../../controllers/chat_controller.dart';
 import '../matches/create_party_screen.dart';
 import '../matches/party_room_screen.dart';
 import 'party_tab.dart';
+import '../wallet/store_screen.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,6 +34,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  bool _isFabVisible = true;
   final AuthController _authController = Get.find<AuthController>();
   final DiscoveryController _discoveryController = Get.put(DiscoveryController());
   final ChatController _chatController = Get.put(ChatController());
@@ -57,64 +60,101 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const VamperLogoSmall(size: 28),
-        centerTitle: true,
-        actions: [
-          // VPC Coin Display
-          Obx(() {
-            final coins = _authController.currentUser.value?.coins ?? 0;
-            return InkWell(
-              onTap: () => Get.to(() => const CoinShopScreen()),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
-                    const SizedBox(width: 4),
-                    Text(
-                      coins.toString(),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollNotification) {
+        if (scrollNotification is ScrollUpdateNotification) {
+          if (scrollNotification.scrollDelta! > 10 && _isFabVisible) {
+            setState(() => _isFabVisible = false);
+          } else if (scrollNotification.scrollDelta! < -10 && !_isFabVisible) {
+            setState(() => _isFabVisible = true);
+          }
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: const VamperLogoSmall(size: 28),
+          centerTitle: true,
+          actions: [
+            // VPC Coin Display
+            Obx(() {
+              final coins = _authController.currentUser.value?.coins ?? 0;
+              return InkWell(
+                onTap: () => Get.to(() => const CoinShopScreen()),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.amber.withOpacity(0.5), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        coins.toString(),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.search, color: AppColors.textPrimary),
+              onPressed: () => Get.to(() => const SearchScreen()),
+            ),
+            IconButton(
+              icon: const Icon(Icons.tune, color: AppColors.textPrimary),
+              onPressed: () => _showFilterSheet(context),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: _screens[_currentIndex],
+        floatingActionButton: AnimatedSlide(
+          duration: const Duration(milliseconds: 200),
+          offset: _isFabVisible ? Offset.zero : const Offset(0, 2),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _isFabVisible ? 1.0 : 0.0,
+            child: FloatingActionButton(
+              onPressed: () => Get.to(() => const CreatePostScreen()),
+              backgroundColor: Colors.transparent,
+              elevation: 4,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4)),
                   ],
                 ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
               ),
-            );
-          }),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.search, color: AppColors.textPrimary),
-            onPressed: () => Get.to(() => const SearchScreen()),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.tune, color: AppColors.textPrimary),
-            onPressed: () => _showFilterSheet(context),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: _screens[_currentIndex],
-      bottomNavigationBar: Container(
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -147,32 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   isActive: _currentIndex == 2,
                   onTap: () => setState(() => _currentIndex = 2),
                 ),
-                
-                // Central Add Button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: InkWell(
-                    onTap: () => Get.to(() => const CreatePostScreen()),
-                    borderRadius: BorderRadius.circular(15),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 26),
-                    ),
-                  ),
-                ),
-
                 Obx(() => _NavBarItem(
                   icon: Icons.chat_bubble_outline,
                   activeIcon: Icons.chat_bubble,
@@ -193,7 +207,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -413,12 +428,12 @@ class MatchesTab extends StatelessWidget {
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                    BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    Positioned(right: -20, bottom: -20, child: Icon(Icons.favorite, size: 150, color: Colors.white.withValues(alpha: 0.2))),
+                    Positioned(right: -20, bottom: -20, child: Icon(Icons.favorite, size: 150, color: Colors.white.withOpacity(0.2))),
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
@@ -427,7 +442,7 @@ class MatchesTab extends StatelessWidget {
                         children: [
                           const Text('Start Swiping', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          Text('Find people near you right now', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
+                          Text('Find people near you right now', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
                         ],
                       ),
                     ),
@@ -448,7 +463,7 @@ class MatchesTab extends StatelessWidget {
                 return Container(
                   margin: const EdgeInsets.only(right: 16),
                   width: 80,
-                  decoration: BoxDecoration(color: AppColors.border.withValues(alpha: 0.3), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: AppColors.border.withOpacity(0.3), shape: BoxShape.circle),
                   child: const Center(child: Icon(Icons.person, color: AppColors.textLight, size: 40)),
                 );
               },
@@ -477,9 +492,9 @@ class _MatchGameButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
+            border: Border.all(color: color.withOpacity(0.3), width: 1.5),
           ),
           child: Column(
             children: [
@@ -535,29 +550,10 @@ class ProfileTab extends StatelessWidget {
           children: [
             Obx(() {
               final user = authController.currentUser.value;
-              final photoUrl = authController.getFullImageUrl(user?.profilePhoto);
-              return Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))],
-                ),
-                child: ClipOval(
-                  child: photoUrl != null
-                      ? Image.network(
-                          photoUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)));
-                          },
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 60, color: Colors.white),
-                        )
-                      : const Icon(Icons.person, size: 60, color: Colors.white),
-                ),
+              return UserAvatarWithFrame(
+                photoUrl: user?.profilePhoto,
+                frameId: user?.activeProfileFrameId,
+                size: 110,
               );
             }),
             const SizedBox(height: 16),
@@ -582,6 +578,7 @@ class ProfileTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
+            _ProfileMenuItem(icon: Icons.storefront, title: 'Item Store 🛍️', onTap: () => Get.to(() => const StoreScreen())),
             _ProfileMenuItem(icon: Icons.edit, title: 'Edit Profile', onTap: () => Get.to(() => const EditProfileScreen())),
             _ProfileMenuItem(icon: Icons.settings, title: 'Settings', onTap: () {}),
             _ProfileMenuItem(icon: Icons.help_outline, title: 'Help & Support', onTap: () {}),
@@ -635,7 +632,7 @@ class _ProfileMenuItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [

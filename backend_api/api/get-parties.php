@@ -28,12 +28,25 @@ try {
         }
     } catch (Exception $e) {}
 
-    $stmt = $db->query("SELECT p.id, p.host_id, p.title, p.theme, p.participants_count, p.is_private, p.password, p.is_live, p.created_at,
-                               u.full_name as host_name, u.profile_photo as host_photo
-                        FROM parties p
-                        JOIN users u ON p.host_id = u.id
-                        WHERE p.is_live = 1
-                        ORDER BY p.participants_count DESC");
+    $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+
+    $sql = "SELECT p.id, p.host_id, p.title, p.theme, p.participants_count, p.is_private, p.password, p.is_live, p.created_at,
+                   u.full_name as host_name, u.profile_photo as host_photo
+            FROM parties p
+            JOIN users u ON p.host_id = u.id
+            WHERE p.is_live = 1";
+
+    if (!empty($user_id)) {
+        $sql .= " AND p.host_id NOT IN (SELECT blocked_id FROM blocked_users WHERE blocker_id = :uid UNION SELECT blocker_id FROM blocked_users WHERE blocked_id = :uid)";
+    }
+    $sql .= " ORDER BY p.participants_count DESC";
+
+    $stmt = $db->prepare($sql);
+    if (!empty($user_id)) {
+        $stmt->execute([':uid' => $user_id]);
+    } else {
+        $stmt->execute();
+    }
     $parties = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Auto-seed active party rooms for existing users if table is empty

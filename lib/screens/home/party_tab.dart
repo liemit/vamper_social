@@ -321,10 +321,25 @@ class _PartyTabState extends State<PartyTab> {
                           children: [
                             Stack(
                               children: [
-                                CircleAvatar(
-                                  radius: 30,
-                                  backgroundImage: hostPhoto != null ? NetworkImage(hostPhoto) : null,
-                                  child: hostPhoto == null ? const Icon(Icons.person, size: 30) : null,
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    gradient: hostPhoto == null ? AppColors.primaryGradient : null,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: ClipOval(
+                                    child: hostPhoto != null
+                                        ? Image.network(
+                                            hostPhoto,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => Container(
+                                              decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
+                                              child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                            ),
+                                          )
+                                        : const Icon(Icons.person, size: 28, color: Colors.white),
+                                  ),
                                 ),
                                 Positioned(
                                   right: 0,

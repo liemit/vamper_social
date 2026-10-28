@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
+import 'store_screen.dart';
 
 class CoinShopScreen extends StatelessWidget {
   const CoinShopScreen({super.key});
@@ -66,6 +67,19 @@ class CoinShopScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => Get.to(() => const StoreScreen()),
+              icon: const Icon(Icons.storefront_rounded, color: AppColors.primary),
+              label: const Text('Open Avatar & Frame Store 🛍️', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ),
             const SizedBox(height: 24),
             const Text('Select Coin Package', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
@@ -149,6 +163,18 @@ class CoinShopScreen extends StatelessWidget {
                   ),
                 );
               },
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => Get.to(() => const StoreScreen()),
+              icon: const Icon(Icons.storefront),
+              label: const Text('Visit Avatar & Frame Store 💎', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
