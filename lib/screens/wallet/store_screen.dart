@@ -43,17 +43,29 @@ class _StoreScreenState extends State<StoreScreen> {
             .map((e) => int.parse(e.toString()))
             .toList();
 
-        if (response.data['active_profile_frame_id'] != null) {
-          _activeFrameId.value = int.tryParse(
-            response.data['active_profile_frame_id'].toString(),
-          );
-        }
+        _activeFrameId.value = int.tryParse(
+          response.data['active_profile_frame_id']?.toString() ?? '',
+        );
         _activePartyFrameId.value = int.tryParse(
           response.data['active_party_frame_id']?.toString() ?? '',
         );
         _activeAvatarId.value = int.tryParse(
           response.data['active_avatar_item_id']?.toString() ?? '',
         );
+
+        final currentUser = _authController.currentUser.value;
+        if (currentUser != null) {
+          await _authController.updateCachedUser(
+            currentUser.copyWith(
+              activeProfileFrameId: _activeFrameId.value,
+              activePartyFrameId: _activePartyFrameId.value,
+              activeProfileFrameCode: response.data['active_profile_frame_code']
+                  ?.toString(),
+              activePartyFrameCode: response.data['active_party_frame_code']
+                  ?.toString(),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Error fetching shop items: $e');
@@ -162,8 +174,8 @@ class _StoreScreenState extends State<StoreScreen> {
               } catch (e) {
                 print('Error purchasing item: $e');
                 Get.snackbar(
-                  'Error',
-                  'Failed to complete purchase',
+                  'Purchase failed',
+                  e.toString().replaceFirst('Exception: ', ''),
                   snackPosition: SnackPosition.BOTTOM,
                 );
               }
@@ -191,7 +203,10 @@ class _StoreScreenState extends State<StoreScreen> {
           if (type == 'profile_frame') {
             _activeFrameId.value = itemId;
             await _authController.updateCachedUser(
-              currentUser.copyWith(activeProfileFrameId: itemId),
+              currentUser.copyWith(
+                activeProfileFrameId: itemId,
+                activeProfileFrameCode: response.data['frame_code']?.toString(),
+              ),
             );
           } else if (type == 'avatar') {
             final photo = response.data['profile_photo'];
@@ -204,7 +219,10 @@ class _StoreScreenState extends State<StoreScreen> {
           } else if (type == 'party_frame') {
             _activePartyFrameId.value = itemId;
             await _authController.updateCachedUser(
-              currentUser.copyWith(activePartyFrameId: itemId),
+              currentUser.copyWith(
+                activePartyFrameId: itemId,
+                activePartyFrameCode: response.data['frame_code']?.toString(),
+              ),
             );
           }
         }
@@ -223,8 +241,8 @@ class _StoreScreenState extends State<StoreScreen> {
     } catch (e) {
       print('Error equipping item: $e');
       Get.snackbar(
-        'Error',
-        'Could not equip this item',
+        'Could not equip item',
+        e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,
       );
     }

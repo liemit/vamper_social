@@ -5,6 +5,7 @@ import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/post_model.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 import '../profile/profile_preview_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -14,7 +15,8 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderStateMixin {
+class _SearchScreenState extends State<SearchScreen>
+    with SingleTickerProviderStateMixin {
   final AuthController _authController = Get.find<AuthController>();
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
@@ -59,10 +61,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     try {
       final response = await _authController.apiService.get(
         ApiConstants.searchGlobal,
-        params: {
-          'q': trimmed,
-          'user_id': currentUserId,
-        },
+        params: {'q': trimmed, 'user_id': currentUserId},
       );
 
       if (response.data['success'] == true) {
@@ -110,11 +109,22 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
             },
             decoration: InputDecoration(
               hintText: 'Search people, posts, email...',
-              hintStyle: const TextStyle(fontSize: 14, color: AppColors.textLight),
-              prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+              hintStyle: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textLight,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18, color: AppColors.textLight),
+                      icon: const Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: AppColors.textLight,
+                      ),
                       onPressed: () {
                         _searchController.clear();
                         _performSearch('');
@@ -139,17 +149,19 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : _activeQuery.isEmpty
-              ? _buildInitialState()
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildAllResultsTab(),
-                    _buildUsersTab(),
-                    _buildPostsTab(),
-                  ],
-                ),
+          ? _buildInitialState()
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildAllResultsTab(),
+                _buildUsersTab(),
+                _buildPostsTab(),
+              ],
+            ),
     );
   }
 
@@ -162,7 +174,11 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
           SizedBox(height: 16),
           Text(
             'Smart Search',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textSecondary,
+            ),
           ),
           SizedBox(height: 8),
           Text(
@@ -186,13 +202,27 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_userResults.isNotEmpty) ...[
-            const Text('People', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const Text(
+              'People',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
             ..._userResults.take(3).map((u) => _buildUserCard(u)),
             const SizedBox(height: 16),
           ],
           if (_postResults.isNotEmpty) ...[
-            const Text('Moments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const Text(
+              'Moments',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
             ..._postResults.map((p) => PostCard(post: p)),
           ],
@@ -222,8 +252,6 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
   }
 
   Widget _buildUserCard(Map<String, dynamic> user) {
-    final photoUrl = _authController.getFullImageUrl(user['profile_photo']);
-
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -231,34 +259,26 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
       color: Colors.white,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            gradient: photoUrl == null ? AppColors.primaryGradient : null,
-            shape: BoxShape.circle,
-          ),
-          child: ClipOval(
-            child: photoUrl != null
-                ? Image.network(
-                    photoUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
-                      child: const Icon(Icons.person, size: 24, color: Colors.white),
-                    ),
-                  )
-                : const Icon(Icons.person, size: 24, color: Colors.white),
-          ),
+        leading: UserAvatarWithFrame(
+          photoUrl: user['profile_photo']?.toString(),
+          frameCode: user['active_profile_frame_code']?.toString(),
+          size: 48,
         ),
         title: Row(
           children: [
-            Text(user['full_name'] ?? 'User', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(
+              user['full_name'] ?? 'User',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
             const SizedBox(width: 4),
-            if (user['is_verified'] == 1) const Icon(Icons.verified, color: Colors.blueAccent, size: 16),
+            if (user['is_verified'] == 1)
+              const Icon(Icons.verified, color: Colors.blueAccent, size: 16),
           ],
         ),
-        subtitle: Text(user['email'] ?? '', style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
+        subtitle: Text(
+          user['email'] ?? '',
+          style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+        ),
         trailing: const Icon(Icons.chevron_right, color: AppColors.textLight),
         onTap: () {
           Get.to(() => ProfilePreviewScreen(userId: user['id'].toString()));
@@ -272,14 +292,25 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search_off_rounded, size: 64, color: AppColors.textLight),
+          const Icon(
+            Icons.search_off_rounded,
+            size: 64,
+            color: AppColors.textLight,
+          ),
           const SizedBox(height: 12),
           Text(
             'No results for "$_activeQuery"',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 6),
-          const Text('Try searching with a different keyword or email.', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
+          const Text(
+            'Try searching with a different keyword or email.',
+            style: TextStyle(color: AppColors.textLight, fontSize: 12),
+          ),
         ],
       ),
     );

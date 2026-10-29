@@ -18,6 +18,8 @@ class UserModel {
   final String? updatedAt;
   final int? activeProfileFrameId;
   final int? activePartyFrameId;
+  final String? activeProfileFrameCode;
+  final String? activePartyFrameCode;
 
   UserModel({
     required this.id,
@@ -39,6 +41,8 @@ class UserModel {
     this.updatedAt,
     this.activeProfileFrameId,
     this.activePartyFrameId,
+    this.activeProfileFrameCode,
+    this.activePartyFrameCode,
   });
 
   int? get age {
@@ -77,6 +81,8 @@ class UserModel {
     String? updatedAt,
     int? activeProfileFrameId,
     int? activePartyFrameId,
+    String? activeProfileFrameCode,
+    String? activePartyFrameCode,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -98,6 +104,9 @@ class UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       activeProfileFrameId: activeProfileFrameId ?? this.activeProfileFrameId,
       activePartyFrameId: activePartyFrameId ?? this.activePartyFrameId,
+      activeProfileFrameCode:
+          activeProfileFrameCode ?? this.activeProfileFrameCode,
+      activePartyFrameCode: activePartyFrameCode ?? this.activePartyFrameCode,
     );
   }
 
@@ -132,6 +141,8 @@ class UserModel {
       activePartyFrameId: json['active_party_frame_id'] != null
           ? int.tryParse(json['active_party_frame_id'].toString())
           : null,
+      activeProfileFrameCode: json['active_profile_frame_code']?.toString(),
+      activePartyFrameCode: json['active_party_frame_code']?.toString(),
     );
   }
 
@@ -156,6 +167,8 @@ class UserModel {
       'updated_at': updatedAt,
       'active_profile_frame_id': activeProfileFrameId,
       'active_party_frame_id': activePartyFrameId,
+      'active_profile_frame_code': activeProfileFrameCode,
+      'active_party_frame_code': activePartyFrameCode,
     };
   }
 }

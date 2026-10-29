@@ -27,11 +27,14 @@ try {
     $where_sql = implode(" AND ", $where_clauses);
 
     $query = "SELECT p.*, u.full_name, u.profile_photo,
+              frame.image_url AS active_profile_frame_code,
               (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
               (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) as comments_count,
               (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id AND user_id = :current_user) as is_liked
               FROM posts p
               JOIN users u ON p.user_id = u.id
+              LEFT JOIN shop_items frame
+                ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
               WHERE $where_sql
               ORDER BY p.created_at DESC
               LIMIT :limit OFFSET :offset";

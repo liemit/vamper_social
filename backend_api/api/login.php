@@ -6,6 +6,15 @@ require_once __DIR__ . '/libs/ApiAuth.php';
 $database = new Database();
 $db = $database->getConnection();
 
+$db->exec("CREATE TABLE IF NOT EXISTS shop_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type ENUM('avatar','profile_frame','party_frame') NOT NULL,
+    image_url VARCHAR(255) NOT NULL,
+    price_coins INT NOT NULL DEFAULT 100,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
     $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE " . $db->quote($column));
     if ($columnStmt->rowCount() === 0) {
@@ -31,9 +40,17 @@ try {
     $email = strtolower(trim((string)$data->email));
 
     // Query user
-    $query = "SELECT id, full_name, email, password, profile_photo, gender, 
-                     date_of_birth, bio, location, is_verified, coins, is_active, created_at, active_profile_frame_id, active_party_frame_id
-              FROM users WHERE email = :email LIMIT 1";
+    $query = "SELECT u.id, u.full_name, u.email, u.password, u.profile_photo, u.gender,
+                     u.date_of_birth, u.bio, u.location, u.is_verified, u.coins, u.is_active,
+                     u.created_at, u.active_profile_frame_id, u.active_party_frame_id,
+                     profile_frame.image_url AS active_profile_frame_code,
+                     party_frame.image_url AS active_party_frame_code
+              FROM users u
+              LEFT JOIN shop_items profile_frame
+                ON profile_frame.id = u.active_profile_frame_id AND profile_frame.type = 'profile_frame'
+              LEFT JOIN shop_items party_frame
+                ON party_frame.id = u.active_party_frame_id AND party_frame.type = 'party_frame'
+              WHERE u.email = :email LIMIT 1";
     
     $stmt = $db->prepare($query);
     $stmt->bindParam(":email", $email);

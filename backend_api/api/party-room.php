@@ -195,9 +195,11 @@ try {
 
             $participantsQuery = $db->prepare(
                 'SELECT pm.user_id, pm.seat_index, pm.is_hand_raised, pm.is_cohost,
-                        u.full_name, u.profile_photo
+                        u.full_name, u.profile_photo, frame.image_url AS active_profile_frame_code
                  FROM party_members pm
                  INNER JOIN users u ON u.id = pm.user_id
+                 LEFT JOIN shop_items frame
+                   ON frame.id = u.active_profile_frame_id AND frame.type = \'profile_frame\'
                  WHERE pm.party_id = :party_id AND pm.last_seen >= UTC_TIMESTAMP() - INTERVAL 30 SECOND
                  ORDER BY pm.seat_index IS NULL, pm.seat_index, u.full_name'
             );

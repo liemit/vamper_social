@@ -3,6 +3,7 @@ class ConversationModel {
   final String partnerId;
   final String partnerName;
   final String? partnerPhoto;
+  final String? partnerProfileFrameCode;
   final String partnerGender;
   final int partnerAge;
   final bool partnerVerified;
@@ -15,6 +16,7 @@ class ConversationModel {
     required this.partnerId,
     required this.partnerName,
     this.partnerPhoto,
+    this.partnerProfileFrameCode,
     required this.partnerGender,
     required this.partnerAge,
     required this.partnerVerified,
@@ -29,9 +31,11 @@ class ConversationModel {
       partnerId: json['partner_id'].toString(),
       partnerName: json['partner_name'] ?? 'User',
       partnerPhoto: json['partner_photo'],
+      partnerProfileFrameCode: json['partner_profile_frame_code']?.toString(),
       partnerGender: json['partner_gender'] ?? 'other',
       partnerAge: int.parse((json['partner_age'] ?? 20).toString()),
-      partnerVerified: json['partner_verified'] == true || json['partner_verified'] == 1,
+      partnerVerified:
+          json['partner_verified'] == true || json['partner_verified'] == 1,
       lastMessage: json['last_message'] ?? '',
       unreadCount: int.parse((json['unread_count'] ?? 0).toString()),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),

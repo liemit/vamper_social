@@ -1,10 +1,10 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/discovery_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 
 class SwipeCardsScreen extends StatefulWidget {
   const SwipeCardsScreen({super.key});
@@ -15,7 +15,9 @@ class SwipeCardsScreen extends StatefulWidget {
 
 class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
   final AuthController _authController = Get.find<AuthController>();
-  final DiscoveryController _discoveryController = Get.put(DiscoveryController());
+  final DiscoveryController _discoveryController = Get.put(
+    DiscoveryController(),
+  );
 
   List<Map<String, dynamic>> _candidates = [];
   bool _isLoading = true;
@@ -75,11 +77,7 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
     try {
       final response = await _authController.apiService.post(
         '${ApiConstants.baseUrl}/lover-card-swipe.php',
-        data: {
-          'user_id': userId,
-          'target_id': targetId,
-          'action': action,
-        },
+        data: {'user_id': userId, 'target_id': targetId, 'action': action},
       );
 
       if (response.data['is_match'] == true) {
@@ -103,19 +101,28 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
             const SizedBox(height: 12),
             const Text(
               'It\'s a Match! 🎉',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'You and ${partner['full_name']} liked each other.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 16),
             CircleAvatar(
               radius: 45,
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-              child: photoUrl == null ? const Icon(Icons.person, size: 40) : null,
+              child: photoUrl == null
+                  ? const Icon(Icons.person, size: 40)
+                  : null,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -123,7 +130,9 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
                 backgroundColor: Colors.pink,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               onPressed: () {
                 Get.back(); // close modal
@@ -157,82 +166,88 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : _candidates.isEmpty
-              ? Center(
-                  child: Column(
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.style_rounded,
+                    size: 70,
+                    color: AppColors.textLight,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No more cards right now!',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Try refreshing or changing filters.',
+                    style: TextStyle(color: AppColors.textLight),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _fetchCandidates,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh Cards'),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        if (_candidates.length > 1)
+                          _buildCard(_candidates[1], isTop: false),
+                        _buildTopCard(_candidates[0]),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.style_rounded, size: 70, color: AppColors.textLight),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No more cards right now!',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      _ActionButton(
+                        icon: Icons.close_rounded,
+                        color: Colors.red,
+                        onTap: () => _swipeCard('pass'),
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Try refreshing or changing filters.',
-                        style: TextStyle(color: AppColors.textLight),
+                      const SizedBox(width: 24),
+                      _ActionButton(
+                        icon: Icons.star_rounded,
+                        color: Colors.blue,
+                        onTap: () => _swipeCard('superlike'),
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: _fetchCandidates,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh Cards'),
+                      const SizedBox(width: 24),
+                      _ActionButton(
+                        icon: Icons.favorite_rounded,
+                        color: Colors.green,
+                        onTap: () => _swipeCard('like'),
                       ),
                     ],
                   ),
-                )
-              : Column(
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (_candidates.length > 1)
-                              _buildCard(_candidates[1], isTop: false),
-                            _buildTopCard(_candidates[0]),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _ActionButton(
-                            icon: Icons.close_rounded,
-                            color: Colors.red,
-                            onTap: () => _swipeCard('pass'),
-                          ),
-                          const SizedBox(width: 24),
-                          _ActionButton(
-                            icon: Icons.star_rounded,
-                            color: Colors.blue,
-                            onTap: () => _swipeCard('superlike'),
-                          ),
-                          const SizedBox(width: 24),
-                          _ActionButton(
-                            icon: Icons.favorite_rounded,
-                            color: Colors.green,
-                            onTap: () => _swipeCard('like'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
+              ],
+            ),
     );
   }
 
@@ -298,8 +313,22 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
                 ? Image.network(photoUrl, fit: BoxFit.cover)
                 : Container(
                     color: Colors.pink.shade50,
-                    child: const Icon(Icons.person, size: 80, color: Colors.pinkAccent),
+                    child: const Icon(
+                      Icons.person,
+                      size: 80,
+                      color: Colors.pinkAccent,
+                    ),
                   ),
+
+            Positioned(
+              top: 18,
+              right: 18,
+              child: UserAvatarWithFrame(
+                photoUrl: user['profile_photo']?.toString(),
+                frameCode: user['active_profile_frame_code']?.toString(),
+                size: 56,
+              ),
+            ),
 
             // Gradient Overlay
             Container(
@@ -325,21 +354,36 @@ class _SwipeCardsScreenState extends State<SwipeCardsScreen> {
                     children: [
                       Text(
                         '${user['full_name']}, ${user['age'] ?? 20}',
-                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       if (user['is_verified'] == 1)
-                        const Icon(Icons.verified, color: Colors.blueAccent, size: 20),
+                        const Icon(
+                          Icons.verified,
+                          color: Colors.blueAccent,
+                          size: 20,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, color: Colors.white70, size: 16),
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.white70,
+                        size: 16,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         user['location'] ?? 'Vietnam',
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -373,7 +417,11 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionButton({required this.icon, required this.color, required this.onTap});
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -5,6 +5,7 @@ import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/feed_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../widgets/post_card.dart';
@@ -14,10 +15,7 @@ import '../../models/conversation_model.dart';
 class ProfilePreviewScreen extends StatefulWidget {
   final String userId;
 
-  const ProfilePreviewScreen({
-    super.key,
-    required this.userId,
-  });
+  const ProfilePreviewScreen({super.key, required this.userId});
 
   @override
   State<ProfilePreviewScreen> createState() => _ProfilePreviewScreenState();
@@ -26,7 +24,7 @@ class ProfilePreviewScreen extends StatefulWidget {
 class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   final AuthController _authController = Get.find<AuthController>();
   final FeedController _feedController = Get.find<FeedController>();
-  
+
   final Rx<UserModel?> _viewedUser = Rx<UserModel?>(null);
   final RxList<PostModel> _userPosts = <PostModel>[].obs;
   final RxBool _isLocalLoading = true.obs;
@@ -40,11 +38,11 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
 
   Future<void> _loadProfileData() async {
     _isLocalLoading.value = true;
-    
+
     // 1. Fetch basic profile info
     final profile = await _authController.fetchUserProfile(widget.userId);
     _viewedUser.value = profile;
-    
+
     // 2. Fetch user's moments (posts)
     final posts = await _feedController.fetchUserPosts(widget.userId);
     _userPosts.assignAll(posts);
@@ -53,7 +51,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     if (widget.userId != _authController.currentUser.value?.id) {
       _isFollowing.value = await _authController.isFollowing(widget.userId);
     }
-    
+
     _isLocalLoading.value = false;
   }
 
@@ -72,14 +70,19 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Block User 🚫'),
-        content: Text('Are you sure you want to block ${_viewedUser.value?.fullName ?? 'this user'}? They will be permanently blocked from viewing your profile and joining your party rooms.'),
+        content: Text(
+          'Are you sure you want to block ${_viewedUser.value?.fullName ?? 'this user'}? They will be permanently blocked from viewing your profile and joining your party rooms.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
               Get.back();
               try {
@@ -93,7 +96,11 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                 );
                 if (response.data['success'] == true) {
                   Get.back(); // return to previous screen
-                  Get.snackbar('Blocked', 'User has been permanently blocked', snackPosition: SnackPosition.BOTTOM);
+                  Get.snackbar(
+                    'Blocked',
+                    'User has been permanently blocked',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
                 }
               } catch (e) {
                 print('Error blocking user: $e');
@@ -112,9 +119,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
 
     return Obx(() {
       if (_isLocalLoading.value) {
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
 
       final user = _viewedUser.value;
@@ -186,7 +191,9 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          final photoUrl = _authController.getFullImageUrl(user.profilePhoto);
+                          final photoUrl = _authController.getFullImageUrl(
+                            user.profilePhoto,
+                          );
                           if (photoUrl != null) {
                             _authController.showImageDetail(photoUrl);
                           }
@@ -201,16 +208,23 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             ),
                             child: Builder(
                               builder: (context) {
-                                final photoUrl = _authController.getFullImageUrl(user.profilePhoto);
+                                final photoUrl = _authController
+                                    .getFullImageUrl(user.profilePhoto);
                                 if (photoUrl != null) {
                                   return Image.network(
                                     photoUrl,
                                     fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return const Center(child: CircularProgressIndicator());
-                                    },
-                                    errorBuilder: (context, error, stackTrace) => _buildPlaceholderIcon(),
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(),
+                                          );
+                                        },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            _buildPlaceholderIcon(),
                                   );
                                 }
                                 return _buildPlaceholderIcon();
@@ -246,6 +260,12 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             children: [
                               Row(
                                 children: [
+                                  UserAvatarWithFrame(
+                                    photoUrl: user.profilePhoto,
+                                    frameCode: user.activeProfileFrameCode,
+                                    size: 56,
+                                  ),
+                                  const SizedBox(width: 12),
                                   Text(
                                     user.fullName,
                                     style: const TextStyle(
@@ -267,17 +287,29 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                                   ],
                                   const SizedBox(width: 8),
                                   if (user.isVerified)
-                                    const Icon(Icons.verified, color: AppColors.info, size: 24),
+                                    const Icon(
+                                      Icons.verified,
+                                      color: AppColors.info,
+                                      size: 24,
+                                    ),
                                 ],
                               ),
-                              if (user.location != null && user.location!.isNotEmpty)
+                              if (user.location != null &&
+                                  user.location!.isNotEmpty)
                                 Row(
                                   children: [
-                                    const Icon(Icons.location_on, color: Colors.white70, size: 16),
+                                    const Icon(
+                                      Icons.location_on,
+                                      color: Colors.white70,
+                                      size: 16,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       user.location!,
-                                      style: const TextStyle(color: Colors.white70, fontSize: 16),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -303,7 +335,9 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          (user.bio != null && user.bio!.isNotEmpty) ? user.bio! : "This user hasn't added a bio yet.",
+                          (user.bio != null && user.bio!.isNotEmpty)
+                              ? user.bio!
+                              : "This user hasn't added a bio yet.",
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textSecondary,
@@ -328,8 +362,16 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        _buildInfoRow(Icons.person_outline, 'Gender', user.gender?.capitalizeFirst ?? 'Not specified'),
-                        _buildInfoRow(Icons.cake_outlined, 'Birthday', user.dateOfBirth ?? 'Not specified'),
+                        _buildInfoRow(
+                          Icons.person_outline,
+                          'Gender',
+                          user.gender?.capitalizeFirst ?? 'Not specified',
+                        ),
+                        _buildInfoRow(
+                          Icons.cake_outlined,
+                          'Birthday',
+                          user.dateOfBirth ?? 'Not specified',
+                        ),
                       ],
                     ),
                   ),
@@ -355,7 +397,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _userPosts.length,
-                            itemBuilder: (context, index) => PostCard(post: _userPosts[index]),
+                            itemBuilder: (context, index) =>
+                                PostCard(post: _userPosts[index]),
                           ),
                       ],
                     ),
@@ -377,9 +420,14 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                         child: Container(
                           height: 56,
                           decoration: BoxDecoration(
-                            color: _isFollowing.value ? Colors.white : AppColors.primary,
+                            color: _isFollowing.value
+                                ? Colors.white
+                                : AppColors.primary,
                             borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: AppColors.primary, width: 2),
+                            border: Border.all(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.primary.withValues(alpha: 0.2),
@@ -392,7 +440,9 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             child: Text(
                               _isFollowing.value ? 'Following' : 'Follow',
                               style: TextStyle(
-                                color: _isFollowing.value ? AppColors.primary : Colors.white,
+                                color: _isFollowing.value
+                                    ? AppColors.primary
+                                    : Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -417,7 +467,10 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                         ],
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline,
+                          color: Colors.white,
+                        ),
                         onPressed: () {
                           final conversation = ConversationModel(
                             conversationId: 0,
@@ -448,10 +501,17 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     return Container(
       padding: const EdgeInsets.all(32),
       width: double.infinity,
-      decoration: BoxDecoration(color: AppColors.border.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: AppColors.border.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         children: [
-          const Icon(Icons.layers_clear_outlined, color: AppColors.textLight, size: 40),
+          const Icon(
+            Icons.layers_clear_outlined,
+            color: AppColors.textLight,
+            size: 40,
+          ),
           const SizedBox(height: 12),
           Text(msg, style: const TextStyle(color: AppColors.textSecondary)),
         ],
@@ -460,7 +520,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   }
 
   Widget _buildPlaceholderIcon() {
-    return Center(child: Icon(Icons.person, size: 100, color: AppColors.textLight.withValues(alpha: 0.5)));
+    return Center(
+      child: Icon(
+        Icons.person,
+        size: 100,
+        color: AppColors.textLight.withValues(alpha: 0.5),
+      ),
+    );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
@@ -473,8 +539,21 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: AppColors.textLight, fontSize: 12)),
-              Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w500)),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textLight,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
         ],

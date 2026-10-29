@@ -4,6 +4,7 @@ import 'package:animate_do/animate_do.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 import '../matches/create_party_screen.dart';
 import '../matches/party_room_screen.dart';
 
@@ -22,6 +23,23 @@ class _PartyTabState extends State<PartyTab> {
   String _searchQuery = '';
 
   final categories = ['🔥 Trending', '🎵 Music', '☕ Chill', '💕 Dating'];
+
+  Color _partyFrameAccent(String? code) {
+    switch (code) {
+      case 'party_pink':
+        return const Color(0xFFE94E9B);
+      case 'party_royal':
+        return const Color(0xFFFFC857);
+      case 'party_disco':
+        return const Color(0xFF31D6E8);
+      case 'party_club':
+        return const Color(0xFF8A6CFF);
+      case 'party_palace':
+        return const Color(0xFF50D6B2);
+      default:
+        return AppColors.primary.withValues(alpha: 0.2);
+    }
+  }
 
   @override
   void initState() {
@@ -440,8 +458,8 @@ class _PartyTabState extends State<PartyTab> {
                 itemCount: displayList.length,
                 itemBuilder: (context, index) {
                   final party = displayList[index];
-                  final hostPhoto = _authController.getFullImageUrl(
-                    party['host_photo'],
+                  final frameAccent = _partyFrameAccent(
+                    party['host_party_frame_code']?.toString(),
                   );
                   final count = party['participants_count'] ?? 1;
 
@@ -464,51 +482,21 @@ class _PartyTabState extends State<PartyTab> {
                             ),
                           ],
                           border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.15),
+                            color: frameAccent,
+                            width: party['host_party_frame_code'] == null
+                                ? 1
+                                : 2,
                           ),
                         ),
                         child: Row(
                           children: [
                             Stack(
                               children: [
-                                Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    gradient: hostPhoto == null
-                                        ? AppColors.primaryGradient
-                                        : null,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: ClipOval(
-                                    child: hostPhoto != null
-                                        ? Image.network(
-                                            hostPhoto,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (
-                                                  context,
-                                                  error,
-                                                  stackTrace,
-                                                ) => Container(
-                                                  decoration:
-                                                      const BoxDecoration(
-                                                        gradient: AppColors
-                                                            .primaryGradient,
-                                                      ),
-                                                  child: const Icon(
-                                                    Icons.person,
-                                                    size: 28,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                          )
-                                        : const Icon(
-                                            Icons.person,
-                                            size: 28,
-                                            color: Colors.white,
-                                          ),
-                                  ),
+                                UserAvatarWithFrame(
+                                  photoUrl: party['host_photo']?.toString(),
+                                  frameCode: party['host_profile_frame_code']
+                                      ?.toString(),
+                                  size: 56,
                                 ),
                                 Positioned(
                                   right: 0,

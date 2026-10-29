@@ -71,6 +71,7 @@ try {
         $stmt = $db->prepare("UPDATE users SET active_profile_frame_id = :iid WHERE id = :uid");
         $stmt->execute([':iid' => $item_id, ':uid' => $user_id]);
         $response['active_profile_frame_id'] = $item_id;
+        $response['frame_code'] = $item_id === null ? null : $item['image_url'];
     } else if ($type === 'avatar') {
         $uStmt = $db->prepare("UPDATE users SET profile_photo = :photo WHERE id = :uid");
         $uStmt->execute([':photo' => $item['image_url'], ':uid' => $user_id]);
@@ -79,6 +80,7 @@ try {
         $stmt = $db->prepare("UPDATE users SET active_party_frame_id = :iid WHERE id = :uid");
         $stmt->execute([':iid' => $item_id, ':uid' => $user_id]);
         $response['active_party_frame_id'] = $item_id;
+        $response['frame_code'] = $item_id === null ? null : $item['image_url'];
     }
 
     http_response_code(200);

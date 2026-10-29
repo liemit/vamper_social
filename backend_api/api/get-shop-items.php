@@ -73,6 +73,8 @@ try {
     $owned_item_ids = [];
     $active_profile_frame = null;
     $active_party_frame = null;
+    $active_profile_frame_code = null;
+    $active_party_frame_code = null;
     $active_avatar_item = null;
 
     if (!empty($user_id)) {
@@ -83,8 +85,15 @@ try {
 
         // Fetch active equipped frame
         $uStmt = $db->prepare(
-            "SELECT u.active_profile_frame_id, u.active_party_frame_id, avatar.id AS active_avatar_item_id
+            "SELECT u.active_profile_frame_id, u.active_party_frame_id,
+                    profile_frame.image_url AS active_profile_frame_code,
+                    party_frame.image_url AS active_party_frame_code,
+                    avatar.id AS active_avatar_item_id
              FROM users u
+             LEFT JOIN shop_items profile_frame
+               ON profile_frame.id = u.active_profile_frame_id AND profile_frame.type = 'profile_frame'
+             LEFT JOIN shop_items party_frame
+               ON party_frame.id = u.active_party_frame_id AND party_frame.type = 'party_frame'
              LEFT JOIN shop_items avatar ON avatar.type = 'avatar' AND avatar.image_url = u.profile_photo
              WHERE u.id = :uid LIMIT 1"
         );
@@ -93,6 +102,8 @@ try {
         if ($activeUser) {
             $active_profile_frame = $activeUser['active_profile_frame_id'];
             $active_party_frame = $activeUser['active_party_frame_id'];
+            $active_profile_frame_code = $activeUser['active_profile_frame_code'];
+            $active_party_frame_code = $activeUser['active_party_frame_code'];
             $active_avatar_item = $activeUser['active_avatar_item_id'];
         }
     }
@@ -104,6 +115,8 @@ try {
         "owned_item_ids" => array_map('intval', $owned_item_ids),
         "active_profile_frame_id" => $active_profile_frame ? (int)$active_profile_frame : null,
         "active_party_frame_id" => $active_party_frame ? (int)$active_party_frame : null,
+        "active_profile_frame_code" => $active_profile_frame_code,
+        "active_party_frame_code" => $active_party_frame_code,
         "active_avatar_item_id" => $active_avatar_item ? (int)$active_avatar_item : null
     ]);
 

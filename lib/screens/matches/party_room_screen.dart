@@ -8,7 +8,6 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:get/get.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
 import '../../widgets/user_avatar_with_frame.dart';
@@ -69,6 +68,9 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
       'id': widget.party['host_id'],
       'name': widget.party['host_name'] ?? 'Host',
       'photo': hostPhoto,
+      'frameCode': currentUserId == hostId
+          ? _authController.currentUser.value?.activeProfileFrameCode
+          : widget.party['host_profile_frame_code'],
       'isHost': true,
       'isMuted': false,
     };
@@ -208,9 +210,13 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
     } catch (error) {
       debugPrint('Unable to join party: $error');
       if (mounted) {
+        final errorMessage = error.toString().replaceFirst('Bad state: ', '');
+        final details = errorMessage.toLowerCase().contains('network error')
+            ? '$errorMessage. Check the API connection and deploy party-room.php to the configured server.'
+            : errorMessage;
         Get.snackbar(
           'Unable to join party',
-          error.toString().replaceFirst('Bad state: ', ''),
+          details,
           snackPosition: SnackPosition.BOTTOM,
         );
         await Future<void>.delayed(const Duration(milliseconds: 1500));
@@ -321,6 +327,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
           'id': participant['user_id'],
           'name': participant['full_name'] ?? 'Participant',
           'photo': participant['profile_photo'],
+          'frameCode': participant['active_profile_frame_code'],
           'isHost':
               int.tryParse(participant['user_id'].toString()) ==
               int.tryParse(widget.party['host_id'].toString()),
@@ -947,9 +954,6 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 itemCount: _participants.length,
                 itemBuilder: (context, index) {
                   final participant = _participants[index];
-                  final photoUrl = _authController.getFullImageUrl(
-                    participant['profile_photo'],
-                  );
                   final seatIndex = int.tryParse(
                     participant['seat_index']?.toString() ?? '',
                   );
@@ -963,38 +967,11 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                       participant['is_hand_raised'] == 1 ||
                       participant['is_hand_raised'] == '1';
                   return ListTile(
-                    leading: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        gradient: photoUrl == null
-                            ? AppColors.primaryGradient
-                            : null,
-                        shape: BoxShape.circle,
-                      ),
-                      child: ClipOval(
-                        child: photoUrl != null
-                            ? Image.network(
-                                photoUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(
-                                      decoration: const BoxDecoration(
-                                        gradient: AppColors.primaryGradient,
-                                      ),
-                                      child: const Icon(
-                                        Icons.person,
-                                        size: 24,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                              )
-                            : const Icon(
-                                Icons.person,
-                                size: 24,
-                                color: Colors.white,
-                              ),
-                      ),
+                    leading: UserAvatarWithFrame(
+                      photoUrl: participant['profile_photo']?.toString(),
+                      frameCode: participant['active_profile_frame_code']
+                          ?.toString(),
+                      size: 44,
                     ),
                     title: Text(
                       participant['full_name']?.toString() ?? 'Participant',
@@ -1225,7 +1202,6 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 itemBuilder: (context, index) {
                   final seat = _seats[index];
                   final isOccupied = seat != null;
-                  final isHostSeat = index == 0;
                   return InkWell(
                     onTap: () => _handleSeatTap(index),
                     borderRadius: BorderRadius.circular(16),
@@ -1237,18 +1213,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                             isOccupied
                                 ? UserAvatarWithFrame(
                                     photoUrl: seat['photo'],
-                                    frameId: isHostSeat
-                                        ? (isHost
-                                              ? _authController
-                                                    .currentUser
-                                                    .value
-                                                    ?.activeProfileFrameId
-                                              : int.tryParse(
-                                                  widget.party['host_profile_frame_id']
-                                                          ?.toString() ??
-                                                      '',
-                                                ))
-                                        : null,
+                                    frameCode: seat['frameCode']?.toString(),
                                     size: 50,
                                   )
                                 : Container(

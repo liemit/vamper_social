@@ -47,9 +47,17 @@ if (!empty($viewer_id) && $viewer_id != $user_id) {
 
 try {
     // Fetch public user data
-    $query = "SELECT id, full_name, profile_photo, gender, date_of_birth, bio, location, is_verified, coins, created_at, active_profile_frame_id, active_party_frame_id
-              FROM users
-              WHERE id = :id LIMIT 1";
+    $query = "SELECT u.id, u.full_name, u.profile_photo, u.gender, u.date_of_birth, u.bio,
+                     u.location, u.is_verified, u.coins, u.created_at,
+                     u.active_profile_frame_id, u.active_party_frame_id,
+                     profile_frame.image_url AS active_profile_frame_code,
+                     party_frame.image_url AS active_party_frame_code
+              FROM users u
+              LEFT JOIN shop_items profile_frame
+                ON profile_frame.id = u.active_profile_frame_id AND profile_frame.type = 'profile_frame'
+              LEFT JOIN shop_items party_frame
+                ON party_frame.id = u.active_party_frame_id AND party_frame.type = 'party_frame'
+              WHERE u.id = :id LIMIT 1";
 
     $stmt = $db->prepare($query);
     $stmt->bindParam(":id", $user_id);

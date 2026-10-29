@@ -5,7 +5,6 @@ import '../controllers/auth_controller.dart';
 
 class UserAvatarWithFrame extends StatelessWidget {
   final String? photoUrl;
-  final int? frameId;
   final String? frameCode;
   final double size;
   final VoidCallback? onTap;
@@ -13,7 +12,6 @@ class UserAvatarWithFrame extends StatelessWidget {
   const UserAvatarWithFrame({
     super.key,
     this.photoUrl,
-    this.frameId,
     this.frameCode,
     this.size = 80.0,
     this.onTap,
@@ -26,7 +24,7 @@ class UserAvatarWithFrame extends StatelessWidget {
         ? authController.getFullImageUrl(photoUrl)
         : null;
 
-    final code = _resolveFrameCode(frameId, frameCode);
+    final code = frameCode != null && frameCode!.isNotEmpty ? frameCode : null;
 
     if (code == null) {
       // Standard Avatar without frame
@@ -66,20 +64,40 @@ class UserAvatarWithFrame extends StatelessWidget {
         gradientColors = [Colors.purple, Colors.pink, Colors.cyan];
         break;
       case 'frame_gold':
-        gradientColors = [Colors.amber.shade700, Colors.yellow, Colors.amber.shade300];
-        badgeIcon = Positioned(top: -size * 0.05, child: Text('👑', style: TextStyle(fontSize: size * 0.22)));
+        gradientColors = [
+          Colors.amber.shade700,
+          Colors.yellow,
+          Colors.amber.shade300,
+        ];
+        badgeIcon = Positioned(
+          top: -size * 0.05,
+          child: Text('👑', style: TextStyle(fontSize: size * 0.22)),
+        );
         break;
       case 'frame_flame':
         gradientColors = [Colors.deepOrange, Colors.orange, Colors.red];
-        badgeIcon = Positioned(bottom: -size * 0.05, child: Text('🔥', style: TextStyle(fontSize: size * 0.22)));
+        badgeIcon = Positioned(
+          bottom: -size * 0.05,
+          child: Text('🔥', style: TextStyle(fontSize: size * 0.22)),
+        );
         break;
       case 'frame_galaxy':
         gradientColors = [Colors.indigo, Colors.purple, Colors.pinkAccent];
-        badgeIcon = Positioned(top: -size * 0.05, child: Text('✨', style: TextStyle(fontSize: size * 0.22)));
+        badgeIcon = Positioned(
+          top: -size * 0.05,
+          child: Text('✨', style: TextStyle(fontSize: size * 0.22)),
+        );
         break;
       case 'frame_dragon':
-        gradientColors = [Colors.red.shade900, Colors.purple.shade800, Colors.black];
-        badgeIcon = Positioned(bottom: -size * 0.05, child: Text('🐉', style: TextStyle(fontSize: size * 0.22)));
+        gradientColors = [
+          Colors.red.shade900,
+          Colors.purple.shade800,
+          Colors.black,
+        ];
+        badgeIcon = Positioned(
+          bottom: -size * 0.05,
+          child: Text('🐉', style: TextStyle(fontSize: size * 0.22)),
+        );
         break;
       case 'frame_white':
       default:
@@ -115,7 +133,7 @@ class UserAvatarWithFrame extends StatelessWidget {
                     color: gradientColors.first.withValues(alpha: 0.4),
                     blurRadius: size * 0.12,
                     spreadRadius: 1,
-                  )
+                  ),
                 ],
               ),
               child: Container(
@@ -142,39 +160,10 @@ class UserAvatarWithFrame extends StatelessWidget {
     );
   }
 
-  String? _resolveFrameCode(int? id, String? code) {
-    if (code != null && code.isNotEmpty) return code;
-    if (id == null || id <= 0) return null;
-    switch (id) {
-      case 1:
-        return 'frame_white';
-      case 2:
-        return 'frame_blue';
-      case 3:
-        return 'frame_emerald';
-      case 4:
-        return 'frame_neon';
-      case 5:
-        return 'frame_gold';
-      case 6:
-        return 'frame_flame';
-      case 7:
-        return 'frame_galaxy';
-      case 8:
-        return 'frame_dragon';
-      default:
-        return 'frame_gold';
-    }
-  }
-
   Widget _buildPlaceholder() {
     return Container(
       color: AppColors.primary.withValues(alpha: 0.1),
-      child: Icon(
-        Icons.person,
-        size: size * 0.45,
-        color: AppColors.primary,
-      ),
+      child: Icon(Icons.person, size: size * 0.45, color: AppColors.primary),
     );
   }
 }

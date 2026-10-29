@@ -34,6 +34,7 @@ class PostModel {
   final String userId;
   final String authorName;
   final String? authorPhoto;
+  final String? authorProfileFrameCode;
   final String content;
   final List<PostPhoto> photos;
   final List<String> hashtags;
@@ -48,6 +49,7 @@ class PostModel {
     required this.userId,
     required this.authorName,
     this.authorPhoto,
+    this.authorProfileFrameCode,
     required this.content,
     required this.photos,
     this.hashtags = const [],
@@ -61,9 +63,13 @@ class PostModel {
   factory PostModel.fromJson(Map<String, dynamic> json) {
     List<PostPhoto> photos = [];
     if (json['photos'] != null) {
-      photos = (json['photos'] as List).map((i) => PostPhoto.fromJson(i)).toList();
+      photos = (json['photos'] as List)
+          .map((i) => PostPhoto.fromJson(i))
+          .toList();
     } else if (json['images'] != null) {
-      photos = (json['images'] as List).map((i) => PostPhoto.fromJson(i)).toList();
+      photos = (json['images'] as List)
+          .map((i) => PostPhoto.fromJson(i))
+          .toList();
     } else if (json['image_url'] != null) {
       photos = [PostPhoto(url: json['image_url'])];
     }
@@ -71,8 +77,15 @@ class PostModel {
     return PostModel(
       id: int.parse(json['id'].toString()),
       userId: json['user_id'].toString(),
-      authorName: json['user'] != null ? (json['user']['full_name'] ?? 'User') : (json['full_name'] ?? 'User'),
-      authorPhoto: json['user'] != null ? json['user']['profile_photo'] : json['profile_photo'],
+      authorName: json['user'] != null
+          ? (json['user']['full_name'] ?? 'User')
+          : (json['full_name'] ?? 'User'),
+      authorPhoto: json['user'] != null
+          ? json['user']['profile_photo']
+          : json['profile_photo'],
+      authorProfileFrameCode:
+          json['active_profile_frame_code']?.toString() ??
+          json['user']?['active_profile_frame_code']?.toString(),
       content: json['content'] ?? '',
       photos: photos,
       hashtags: List<String>.from(json['hashtags'] ?? []),

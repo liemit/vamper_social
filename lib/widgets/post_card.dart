@@ -11,6 +11,7 @@ import '../core/utils/date_formatter.dart';
 import '../screens/profile/profile_preview_screen.dart';
 import '../screens/home/create_post_screen.dart';
 import 'comments_sheet.dart';
+import 'user_avatar_with_frame.dart';
 
 class PostCard extends StatelessWidget {
   final PostModel post;
@@ -30,7 +31,11 @@ class PostCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
@@ -42,42 +47,46 @@ class PostCard extends StatelessWidget {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Get.to(() => ProfilePreviewScreen(userId: post.userId)),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: ClipOval(
-                        child: post.authorPhoto != null 
-                            ? Image.network(
-                                authController.getFullImageUrl(post.authorPhoto)!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => const Icon(Icons.person, color: Colors.white),
-                              )
-                            : const Icon(Icons.person, color: Colors.white),
-                      ),
+                    onTap: () =>
+                        Get.to(() => ProfilePreviewScreen(userId: post.userId)),
+                    child: UserAvatarWithFrame(
+                      photoUrl: post.authorPhoto,
+                      frameCode: post.authorProfileFrameCode,
+                      size: 40,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => Get.to(() => ProfilePreviewScreen(userId: post.userId)),
+                      onTap: () => Get.to(
+                        () => ProfilePreviewScreen(userId: post.userId),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(post.authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(
+                            post.authorName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                           Row(
                             children: [
                               Text(
                                 DateFormatter.formatTimeAgo(post.createdAt),
-                                style: const TextStyle(color: AppColors.textLight, fontSize: 12),
+                                style: const TextStyle(
+                                  color: AppColors.textLight,
+                                  fontSize: 12,
+                                ),
                               ),
                               if (post.status == 0) ...[
                                 const SizedBox(width: 8),
-                                const Icon(Icons.lock, size: 12, color: AppColors.textLight),
+                                const Icon(
+                                  Icons.lock,
+                                  size: 12,
+                                  color: AppColors.textLight,
+                                ),
                               ],
                             ],
                           ),
@@ -86,21 +95,75 @@ class PostCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuButton<String>(
-                    onSelected: (value) => _handlePostAction(context, value, post, feedController),
-                    icon: const Icon(Icons.more_horiz, color: AppColors.textLight),
+                    onSelected: (value) =>
+                        _handlePostAction(context, value, post, feedController),
+                    icon: const Icon(
+                      Icons.more_horiz,
+                      color: AppColors.textLight,
+                    ),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag_outlined, size: 20, color: Colors.orange), SizedBox(width: 12), Text('Report Post')])),
-                      if (post.userId == authController.currentUser.value?.id) ...[
-                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), SizedBox(width: 12), Text('Edit Post')])),
-                        PopupMenuItem(
-                          value: 'privacy', 
-                          child: Row(children: [
-                            Icon(post.status == 1 ? Icons.lock_outline : Icons.public, size: 20), 
-                            const SizedBox(width: 12), 
-                            Text(post.status == 1 ? 'Make Private' : 'Make Public')
-                          ])
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.flag_outlined,
+                              size: 20,
+                              color: Colors.orange,
+                            ),
+                            SizedBox(width: 12),
+                            Text('Report Post'),
+                          ],
                         ),
-                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 20, color: Colors.red), SizedBox(width: 12), Text('Delete', style: TextStyle(color: Colors.red))])),
+                      ),
+                      if (post.userId ==
+                          authController.currentUser.value?.id) ...[
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 12),
+                              Text('Edit Post'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'privacy',
+                          child: Row(
+                            children: [
+                              Icon(
+                                post.status == 1
+                                    ? Icons.lock_outline
+                                    : Icons.public,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                post.status == 1
+                                    ? 'Make Private'
+                                    : 'Make Public',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                size: 20,
+                                color: Colors.red,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -115,12 +178,25 @@ class PostCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(post.content, style: const TextStyle(fontSize: 15, height: 1.4)),
+                    Text(
+                      post.content,
+                      style: const TextStyle(fontSize: 15, height: 1.4),
+                    ),
                     if (post.hashtags.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        children: post.hashtags.map((tag) => Text('#$tag', style: const TextStyle(color: AppColors.info, fontWeight: FontWeight.w600))).toList(),
+                        children: post.hashtags
+                            .map(
+                              (tag) => Text(
+                                '#$tag',
+                                style: const TextStyle(
+                                  color: AppColors.info,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            )
+                            .toList(),
                       ),
                     ],
                   ],
@@ -129,7 +205,10 @@ class PostCard extends StatelessWidget {
 
             // Multiple Images Carousel
             if (post.photos.isNotEmpty)
-              _ImageCarousel(photos: post.photos, authController: authController),
+              _ImageCarousel(
+                photos: post.photos,
+                authController: authController,
+              ),
 
             // Interaction Bar
             Padding(
@@ -139,7 +218,9 @@ class PostCard extends StatelessWidget {
                   _InteractionButton(
                     icon: post.isLiked ? Icons.favorite : Icons.favorite_border,
                     label: post.likesCount.toString(),
-                    color: post.isLiked ? AppColors.primary : AppColors.textSecondary,
+                    color: post.isLiked
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                     onTap: () => feedController.toggleLike(post),
                   ),
                   const SizedBox(width: 16),
@@ -152,12 +233,16 @@ class PostCard extends StatelessWidget {
                   const Spacer(),
                   IconButton(
                     onPressed: () {
-                      String shareText = 'Check out this moment on Vamper! 💖\n\n'
+                      String shareText =
+                          'Check out this moment on Vamper! 💖\n\n'
                           '${post.authorName} says: "${post.content}"\n\n'
                           'Join us on Vamper for more! #vamper #dating';
                       Share.share(shareText);
-                    }, 
-                    icon: const Icon(Icons.share_outlined, color: AppColors.textSecondary),
+                    },
+                    icon: const Icon(
+                      Icons.share_outlined,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -177,7 +262,12 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  void _handlePostAction(BuildContext context, String value, PostModel post, FeedController controller) {
+  void _handlePostAction(
+    BuildContext context,
+    String value,
+    PostModel post,
+    FeedController controller,
+  ) {
     if (value == 'report') {
       _showReportDialog(context, post, controller);
     } else if (value == 'delete') {
@@ -186,7 +276,10 @@ class PostCard extends StatelessWidget {
           title: const Text('Delete Post'),
           content: const Text('Are you sure you want to delete this moment?'),
           actions: [
-            TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('Cancel'),
+            ),
             TextButton(
               onPressed: () async {
                 Get.back(); // close dialog
@@ -223,7 +316,11 @@ class PostCard extends StatelessWidget {
     }
   }
 
-  void _showReportDialog(BuildContext context, PostModel post, FeedController controller) {
+  void _showReportDialog(
+    BuildContext context,
+    PostModel post,
+    FeedController controller,
+  ) {
     final RxString selectedReason = 'Spam'.obs;
     final TextEditingController descController = TextEditingController();
 
@@ -243,18 +340,30 @@ class PostCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Please select a reason for reporting this post:', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+              const Text(
+                'Please select a reason for reporting this post:',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
               const SizedBox(height: 12),
-              Obx(() => Column(
-                children: reasons.map((reason) => RadioListTile<String>(
-                  title: Text(reason, style: const TextStyle(fontSize: 13)),
-                  value: reason,
-                  groupValue: selectedReason.value,
-                  onChanged: (val) => selectedReason.value = val!,
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                )).toList(),
-              )),
+              Obx(
+                () => Column(
+                  children: reasons
+                      .map(
+                        (reason) => RadioListTile<String>(
+                          title: Text(
+                            reason,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          value: reason,
+                          groupValue: selectedReason.value,
+                          onChanged: (val) => selectedReason.value = val!,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: descController,
@@ -274,9 +383,16 @@ class PostCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
               Get.back();
-              controller.reportPost(post.id, selectedReason.value, descController.text.trim());
+              controller.reportPost(
+                post.id,
+                selectedReason.value,
+                descController.text.trim(),
+              );
             },
-            child: const Text('Submit Report', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Submit Report',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -330,43 +446,56 @@ class _ImageCarouselState extends State<_ImageCarousel> {
               itemCount: widget.photos.length,
               onPageChanged: (index) => setState(() => _currentPage = index),
               itemBuilder: (context, index) {
-              final photo = widget.photos[index];
-              final url = widget.authController.getFullImageUrl(photo.url);
-              return GestureDetector(
-                onTap: () => url != null ? widget.authController.showImageDetail(url) : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: url != null
-                        ? Transform.scale(
-                            scale: photo.scale,
-                            alignment: photo.alignment,
-                            child: Image.network(
-                              url,
-                              fit: BoxFit.cover,
+                final photo = widget.photos[index];
+                final url = widget.authController.getFullImageUrl(photo.url);
+                return GestureDetector(
+                  onTap: () => url != null
+                      ? widget.authController.showImageDetail(url)
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: url != null
+                          ? Transform.scale(
+                              scale: photo.scale,
                               alignment: photo.alignment,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: AppColors.border.withValues(alpha: 0.1),
-                                  child: const Center(child: CircularProgressIndicator()),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                color: AppColors.border.withValues(alpha: 0.1),
-                                child: const Icon(Icons.broken_image, color: Colors.grey),
+                              child: Image.network(
+                                url,
+                                fit: BoxFit.cover,
+                                alignment: photo.alignment,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: AppColors.border.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+                                    },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      color: AppColors.border.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
                               ),
-                            ),
-                          )
-                        : const Icon(Icons.image),
+                            )
+                          : const Icon(Icons.image),
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
-      ),
         if (widget.photos.length > 1)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -380,7 +509,9 @@ class _ImageCarouselState extends State<_ImageCarousel> {
                   height: 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _currentPage == index ? AppColors.primary : AppColors.textLight.withValues(alpha: 0.5),
+                    color: _currentPage == index
+                        ? AppColors.primary
+                        : AppColors.textLight.withValues(alpha: 0.5),
                   ),
                 ),
               ),
@@ -397,7 +528,12 @@ class _InteractionButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _InteractionButton({required this.icon, required this.label, required this.color, required this.onTap});
+  const _InteractionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -410,7 +546,10 @@ class _InteractionButton extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),

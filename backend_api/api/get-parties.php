@@ -65,10 +65,12 @@ try {
                    p.is_private, p.is_live, p.created_at,
                    u.full_name as host_name, u.profile_photo as host_photo,
            u.active_profile_frame_id AS host_profile_frame_id,
+           profile_item.image_url AS host_profile_frame_code,
            u.active_party_frame_id AS host_party_frame_id, party_item.image_url AS host_party_frame_code
             FROM parties p
             JOIN users u ON p.host_id = u.id
             LEFT JOIN shop_items party_item ON party_item.id = u.active_party_frame_id AND party_item.type = 'party_frame'
+            LEFT JOIN shop_items profile_item ON profile_item.id = u.active_profile_frame_id AND profile_item.type = 'profile_frame'
             WHERE p.is_live = 1";
 
     $sql .= " AND p.host_id NOT IN (
@@ -112,10 +114,12 @@ try {
                                    p.is_private, p.is_live, p.created_at,
                                    u.full_name as host_name, u.profile_photo as host_photo,
                                    u.active_profile_frame_id AS host_profile_frame_id,
+                                   profile_item.image_url AS host_profile_frame_code,
                                    u.active_party_frame_id AS host_party_frame_id, party_item.image_url AS host_party_frame_code
                             FROM parties p
                             JOIN users u ON p.host_id = u.id
                             LEFT JOIN shop_items party_item ON party_item.id = u.active_party_frame_id AND party_item.type = 'party_frame'
+                            LEFT JOIN shop_items profile_item ON profile_item.id = u.active_profile_frame_id AND profile_item.type = 'profile_frame'
                             WHERE p.is_live = 1
                               AND p.host_id NOT IN (
                                   SELECT blocked_id FROM blocked_users WHERE blocker_id = :blocker_uid
