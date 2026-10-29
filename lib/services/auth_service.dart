@@ -46,10 +46,7 @@ class AuthService {
     try {
       final response = await _apiService.post(
         ApiConstants.login,
-        data: {
-          'email': email.trim().toLowerCase(),
-          'password': password,
-        },
+        data: {'email': email.trim().toLowerCase(), 'password': password},
       );
 
       if (response.data['success'] == true) {
@@ -81,14 +78,20 @@ class AuthService {
   }
 
   // Verify OTP
-  Future<Map<String, dynamic>> verifyOtp({required String email, required String otpCode}) async {
+  Future<Map<String, dynamic>> verifyOtp({
+    required String email,
+    required String otpCode,
+  }) async {
     try {
       final response = await _apiService.post(
         ApiConstants.verifyOtp,
         data: {'email': email, 'otp_code': otpCode},
       );
       if (response.data['success'] == true) {
-        await saveAuthData(response.data['data']['token'], response.data['data']['user']);
+        await saveAuthData(
+          response.data['data']['token'],
+          response.data['data']['user'],
+        );
         return response.data;
       }
       throw response.data['message'] ?? 'Invalid OTP';
@@ -98,14 +101,14 @@ class AuthService {
   }
 
   // Get Any User Profile
-  Future<Map<String, dynamic>> getUserProfile(String userId, {String? viewerId}) async {
+  Future<Map<String, dynamic>> getUserProfile(
+    String userId, {
+    String? viewerId,
+  }) async {
     try {
       final response = await _apiService.get(
         ApiConstants.getProfile,
-        params: {
-          'user_id': userId,
-          if (viewerId != null) 'viewer_id': viewerId,
-        },
+        params: {'user_id': userId, 'viewer_id': ?viewerId},
       );
 
       if (response.data['success'] == true) {
@@ -197,7 +200,7 @@ class AuthService {
       });
 
       final response = await _apiService.post(
-        ApiConstants.uploadProfilePhoto, 
+        ApiConstants.uploadProfilePhoto,
         data: formData,
       );
 
@@ -230,6 +233,16 @@ class AuthService {
     await prefs.setBool(ApiConstants.keyIsLoggedIn, true);
   }
 
+  Future<void> updateStoredUserData(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedUser = prefs.getString(ApiConstants.keyUserData);
+    final userData = storedUser == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(jsonDecode(storedUser) as Map);
+    userData.addAll(user.toJson());
+    await prefs.setString(ApiConstants.keyUserData, jsonEncode(userData));
+  }
+
   Future<UserModel?> getUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userData = prefs.getString(ApiConstants.keyUserData);
@@ -243,6 +256,12 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    try {
+      await _apiService.post(ApiConstants.logout);
+    } catch (error) {
+      print('Unable to revoke API session during logout: $error');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(ApiConstants.keyToken);
     await prefs.remove(ApiConstants.keyUserId);

@@ -103,7 +103,7 @@ class _VoiceMatchCallScreenState extends State<VoiceMatchCallScreen> with Single
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.2),
+                      color: Colors.blue.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -126,7 +126,7 @@ class _VoiceMatchCallScreenState extends State<VoiceMatchCallScreen> with Single
                       height: 160,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.blue.withOpacity(0.2),
+                        color: Colors.blue.withValues(alpha: 0.2),
                       ),
                     ),
                   ),
@@ -135,7 +135,7 @@ class _VoiceMatchCallScreenState extends State<VoiceMatchCallScreen> with Single
                     height: 130,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.blue.withOpacity(0.4),
+                      color: Colors.blue.withValues(alpha: 0.4),
                     ),
                   ),
                   CircleAvatar(
@@ -220,7 +220,7 @@ class _VoiceMatchCallScreenState extends State<VoiceMatchCallScreen> with Single
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withOpacity(0.4),
+                        color: Colors.red.withValues(alpha: 0.4),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),

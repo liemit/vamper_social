@@ -1,11 +1,12 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
-$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+$user_id = authenticateApiUser($db);
 
 try {
     // Ensure tables exist
@@ -26,11 +27,13 @@ try {
         UNIQUE KEY unique_user_item (user_id, item_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 
-    // Ensure columns in users and parties
-    try {
-        $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS active_profile_frame_id INT NULL;");
-        $db->exec("ALTER TABLE parties ADD COLUMN IF NOT EXISTS active_frame_id INT NULL;");
-    } catch (Exception $e) {}
+    // Ensure the selected cosmetics can be persisted for each user.
+    foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
+        $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE " . $db->quote($column));
+        if ($columnStmt->rowCount() === 0) {
+            $db->exec("ALTER TABLE users ADD COLUMN `$column` INT NULL");
+        }
+    }
 
     // Auto-seed shop_items if empty
     $countStmt = $db->query("SELECT COUNT(*) FROM shop_items");
@@ -69,6 +72,8 @@ try {
 
     $owned_item_ids = [];
     $active_profile_frame = null;
+    $active_party_frame = null;
+    $active_avatar_item = null;
 
     if (!empty($user_id)) {
         // Fetch owned items
@@ -77,9 +82,19 @@ try {
         $owned_item_ids = $oStmt->fetchAll(PDO::FETCH_COLUMN);
 
         // Fetch active equipped frame
-        $uStmt = $db->prepare("SELECT active_profile_frame_id FROM users WHERE id = :uid LIMIT 1");
+        $uStmt = $db->prepare(
+            "SELECT u.active_profile_frame_id, u.active_party_frame_id, avatar.id AS active_avatar_item_id
+             FROM users u
+             LEFT JOIN shop_items avatar ON avatar.type = 'avatar' AND avatar.image_url = u.profile_photo
+             WHERE u.id = :uid LIMIT 1"
+        );
         $uStmt->execute([':uid' => $user_id]);
-        $active_profile_frame = $uStmt->fetchColumn();
+        $activeUser = $uStmt->fetch(PDO::FETCH_ASSOC);
+        if ($activeUser) {
+            $active_profile_frame = $activeUser['active_profile_frame_id'];
+            $active_party_frame = $activeUser['active_party_frame_id'];
+            $active_avatar_item = $activeUser['active_avatar_item_id'];
+        }
     }
 
     http_response_code(200);
@@ -87,7 +102,9 @@ try {
         "success" => true,
         "items" => $items,
         "owned_item_ids" => array_map('intval', $owned_item_ids),
-        "active_profile_frame_id" => $active_profile_frame ? (int)$active_profile_frame : null
+        "active_profile_frame_id" => $active_profile_frame ? (int)$active_profile_frame : null,
+        "active_party_frame_id" => $active_party_frame ? (int)$active_party_frame : null,
+        "active_avatar_item_id" => $active_avatar_item ? (int)$active_avatar_item : null
     ]);
 
 } catch (PDOException $e) {

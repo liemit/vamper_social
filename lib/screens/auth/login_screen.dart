@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_text_styles.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
-import '../../widgets/social_button.dart';
 import '../../widgets/vamper_logo.dart';
 import '../../widgets/loading_overlay.dart';
 import '../../controllers/auth_controller.dart';
-import '../home/home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {

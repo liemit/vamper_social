@@ -1,5 +1,6 @@
 <?php
 require_once '../config/database.php';
+require_once __DIR__ . '/../libs/ApiAuth.php';
 require_once '../libs/EmailSender.php';
 
 // Handle preflight OPTIONS request
@@ -79,7 +80,7 @@ try {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         // Generate simple token (in production, use JWT)
-        $token = base64_encode($user['id'] . ':' . time());
+        $token = issueApiToken($db, (int)$user['id']);
 
         // ============================================
         // AUTO-SEND OTP AFTER REGISTRATION - VIA EMAIL SENDER CLASS

@@ -47,7 +47,8 @@ class UserModel {
       final dob = DateTime.parse(dateOfBirth!);
       final now = DateTime.now();
       int age = now.year - dob.year;
-      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      if (now.month < dob.month ||
+          (now.month == dob.month && now.day < dob.day)) {
         age--;
       }
       return age;
@@ -114,13 +115,23 @@ class UserModel {
       location: json['location'],
       latitude: json['latitude'],
       longitude: json['longitude'],
-      isVerified: json['is_verified'] == '1' || json['is_verified'] == 1 || json['is_verified'] == true,
+      isVerified:
+          json['is_verified'] == '1' ||
+          json['is_verified'] == 1 ||
+          json['is_verified'] == true,
       coins: int.tryParse(json['coins'].toString()) ?? 0,
-      isActive: json['is_active'] == '1' || json['is_active'] == 1 || json['is_active'] == true,
+      isActive:
+          json['is_active'] == '1' ||
+          json['is_active'] == 1 ||
+          json['is_active'] == true,
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'],
-      activeProfileFrameId: json['active_profile_frame_id'] != null ? int.tryParse(json['active_profile_frame_id'].toString()) : null,
-      activePartyFrameId: json['active_party_frame_id'] != null ? int.tryParse(json['active_party_frame_id'].toString()) : null,
+      activeProfileFrameId: json['active_profile_frame_id'] != null
+          ? int.tryParse(json['active_profile_frame_id'].toString())
+          : null,
+      activePartyFrameId: json['active_party_frame_id'] != null
+          ? int.tryParse(json['active_party_frame_id'].toString())
+          : null,
     );
   }
 
@@ -129,6 +140,7 @@ class UserModel {
       'id': id,
       'full_name': fullName,
       'email': email,
+      'role': role,
       'phone': phone,
       'gender': gender,
       'date_of_birth': dateOfBirth,

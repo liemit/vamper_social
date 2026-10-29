@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/api_constants.dart';
 
 class ApiService {
@@ -20,8 +21,13 @@ class ApiService {
     // Add interceptors for logging & ngrok header enforcement
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
+        onRequest: (options, handler) async {
           options.headers['ngrok-skip-browser-warning'] = 'true';
+          final preferences = await SharedPreferences.getInstance();
+          final token = preferences.getString(ApiConstants.keyToken);
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
           return handler.next(options);
         },
       ),
@@ -29,8 +35,8 @@ class ApiService {
 
     _dio.interceptors.add(
       LogInterceptor(
-        requestBody: true,
-        responseBody: true,
+        requestBody: false,
+        responseBody: false,
         error: true,
         requestHeader: false,
         responseHeader: false,

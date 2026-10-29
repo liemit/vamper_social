@@ -5,6 +5,13 @@ require_once '../config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
+    $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE " . $db->quote($column));
+    if ($columnStmt->rowCount() === 0) {
+        $db->exec("ALTER TABLE users ADD COLUMN `$column` INT NULL");
+    }
+}
+
 // Get user_id and optional viewer_id
 $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $viewer_id = isset($_GET['viewer_id']) ? $_GET['viewer_id'] : (isset($_GET['current_user_id']) ? $_GET['current_user_id'] : null);

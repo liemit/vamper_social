@@ -260,7 +260,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: msg.reaction == emoji ? AppColors.primary.withOpacity(0.2) : Colors.grey.shade100,
+                      color: msg.reaction == emoji ? AppColors.primary.withValues(alpha: 0.2) : Colors.grey.shade100,
                       shape: BoxShape.circle,
                     ),
                     child: Text(emoji, style: const TextStyle(fontSize: 24)),
@@ -515,7 +515,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -530,7 +530,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(8),
                         border: Border(left: BorderSide(color: isMe ? Colors.white : AppColors.primary, width: 3)),
                       ),
@@ -636,7 +636,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4, offset: const Offset(0, 2)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 2)),
                     ],
                   ),
                   child: Text(msg.reaction!, style: const TextStyle(fontSize: 12)),

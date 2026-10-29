@@ -135,11 +135,11 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen> with 
                         height: 240,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.blue.withOpacity(0.3), width: 2),
+                          border: Border.all(color: Colors.blue.withValues(alpha: 0.3), width: 2),
                           gradient: SweepGradient(
                             colors: [
-                              Colors.blue.withOpacity(0.0),
-                              Colors.blue.withOpacity(0.4),
+                              Colors.blue.withValues(alpha: 0.0),
+                              Colors.blue.withValues(alpha: 0.4),
                             ],
                           ),
                         ),
@@ -150,7 +150,7 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen> with 
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.blue.shade500.withOpacity(0.2),
+                        color: Colors.blue.shade500.withValues(alpha: 0.2),
                       ),
                     ),
                     const CircleAvatar(

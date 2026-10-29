@@ -271,7 +271,7 @@ class _ImagePreviewCard extends StatelessWidget {
             child: Container(
               width: double.infinity,
               height: double.infinity,
-              color: AppColors.border.withOpacity(0.2),
+              color: AppColors.border.withValues(alpha: 0.2),
               child: url != null
                   ? Image.network(url!, fit: BoxFit.cover, alignment: alignment)
                   : (kIsWeb ? Image.network(file!.path, fit: BoxFit.cover, alignment: alignment) : Image.file(file!, fit: BoxFit.cover, alignment: alignment)),

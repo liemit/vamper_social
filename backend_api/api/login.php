@@ -1,9 +1,17 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
+
+foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
+    $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE " . $db->quote($column));
+    if ($columnStmt->rowCount() === 0) {
+        $db->exec("ALTER TABLE users ADD COLUMN `$column` INT NULL");
+    }
+}
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
@@ -50,8 +58,7 @@ try {
             // Remove password from response
             unset($user['password']);
             
-            // Generate simple token (in production, use JWT)
-            $token = base64_encode($user['id'] . ':' . time());
+            $token = issueApiToken($db, (int)$user['id']);
 
             // Update last login (optional)
             $update_query = "UPDATE users SET updated_at = NOW() WHERE id = :id";

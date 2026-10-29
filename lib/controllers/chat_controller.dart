@@ -169,7 +169,7 @@ class ChatController extends GetxController {
           'sender_id': userId,
           'receiver_id': partnerId,
           'content': text.trim(),
-          if (replyTo != null) 'reply_to': replyTo,
+          'reply_to': ?replyTo,
         },
       );
 
@@ -208,7 +208,7 @@ class ChatController extends GetxController {
         'sender_id': userId,
         'receiver_id': partnerId,
         'content': '📷 [Photo]',
-        if (replyTo != null) 'reply_to': replyTo,
+        'reply_to': ?replyTo,
         'image': dio.MultipartFile.fromBytes(bytes.toList(), filename: imageFile.name),
       });
 
@@ -255,7 +255,7 @@ class ChatController extends GetxController {
         'sender_id': userId,
         'receiver_id': partnerId,
         'content': '🎬 [Video]',
-        if (replyTo != null) 'reply_to': replyTo,
+        'reply_to': ?replyTo,
         'video': dio.MultipartFile.fromBytes(bytes.toList(), filename: videoFile.name),
       });
 

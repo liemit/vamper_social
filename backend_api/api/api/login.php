@@ -1,5 +1,6 @@
 <?php
 require_once '../config/database.php';
+require_once __DIR__ . '/../libs/ApiAuth.php';
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -52,7 +53,7 @@ try {
             unset($user['password']);
             
             // Generate simple token (in production, use JWT)
-            $token = base64_encode($user['id'] . ':' . time());
+            $token = issueApiToken($db, (int)$user['id']);
 
             // Update last login (optional)
             $update_query = "UPDATE users SET updated_at = NOW() WHERE id = :id";

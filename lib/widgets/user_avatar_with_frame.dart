@@ -44,7 +44,7 @@ class UserAvatarWithFrame extends StatelessWidget {
                 ? Image.network(
                     fullPhotoUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                    errorBuilder: (_, _, _) => _buildPlaceholder(),
                   )
                 : _buildPlaceholder(),
           ),
@@ -112,7 +112,7 @@ class UserAvatarWithFrame extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: gradientColors.first.withOpacity(0.4),
+                    color: gradientColors.first.withValues(alpha: 0.4),
                     blurRadius: size * 0.12,
                     spreadRadius: 1,
                   )
@@ -129,13 +129,13 @@ class UserAvatarWithFrame extends StatelessWidget {
                       ? Image.network(
                           fullPhotoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                          errorBuilder: (_, _, _) => _buildPlaceholder(),
                         )
                       : _buildPlaceholder(),
                 ),
               ),
             ),
-            if (badgeIcon != null) badgeIcon,
+            ?badgeIcon,
           ],
         ),
       ),
@@ -169,7 +169,7 @@ class UserAvatarWithFrame extends StatelessWidget {
 
   Widget _buildPlaceholder() {
     return Container(
-      color: AppColors.primary.withOpacity(0.1),
+      color: AppColors.primary.withValues(alpha: 0.1),
       child: Icon(
         Icons.person,
         size: size * 0.45,
