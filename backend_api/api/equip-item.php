@@ -11,22 +11,15 @@ $user_id = authenticateApiUser($db);
 $item_id = isset($data->item_id) && $data->item_id !== null
     ? filter_var($data->item_id, FILTER_VALIDATE_INT)
     : null;
-$type = $data->type ?? 'profile_frame'; // 'profile_frame', 'avatar', or 'party_frame'
+$type = $data->type ?? 'profile_frame';
 
-if (!in_array($type, ['profile_frame', 'avatar', 'party_frame'], true)) {
+if (!in_array($type, ['profile_frame', 'avatar'], true)) {
     http_response_code(400);
     echo json_encode(["success" => false, "message" => "Valid item type is required."]);
     exit();
 }
 
 try {
-    if ($type === 'party_frame') {
-        $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE 'active_party_frame_id'");
-        if ($columnStmt->rowCount() === 0) {
-            $db->exec("ALTER TABLE users ADD COLUMN active_party_frame_id INT NULL");
-        }
-    }
-
     $userStmt = $db->prepare("SELECT 1 FROM users WHERE id = :uid LIMIT 1");
     $userStmt->execute([':uid' => $user_id]);
     if (!$userStmt->fetchColumn()) {
@@ -76,11 +69,6 @@ try {
         $uStmt = $db->prepare("UPDATE users SET profile_photo = :photo WHERE id = :uid");
         $uStmt->execute([':photo' => $item['image_url'], ':uid' => $user_id]);
         $response['profile_photo'] = $item['image_url'];
-    } else if ($type === 'party_frame') {
-        $stmt = $db->prepare("UPDATE users SET active_party_frame_id = :iid WHERE id = :uid");
-        $stmt->execute([':iid' => $item_id, ':uid' => $user_id]);
-        $response['active_party_frame_id'] = $item_id;
-        $response['frame_code'] = $item_id === null ? null : $item['image_url'];
     }
 
     http_response_code(200);

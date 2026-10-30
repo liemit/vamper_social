@@ -1,24 +1,31 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../core/constants/api_constants.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/discovery_controller.dart';
-import '../../app/theme/app_colors.dart';
+import '../../core/constants/api_constants.dart';
 import 'voice_match_call_screen.dart';
 
 class VoiceMatchWaitingScreen extends StatefulWidget {
   const VoiceMatchWaitingScreen({super.key});
 
   @override
-  State<VoiceMatchWaitingScreen> createState() => _VoiceMatchWaitingScreenState();
+  State<VoiceMatchWaitingScreen> createState() =>
+      _VoiceMatchWaitingScreenState();
 }
 
-class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  Timer? _pingTimer;
+class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  Timer? _pollTimer;
   bool _isSearching = true;
+  bool _isPolling = false;
+  bool _hasMatched = false;
   String _statusText = 'Finding voice partner...';
+  String? _errorMessage;
+
+  AuthController get _authController => Get.find<AuthController>();
 
   @override
   void initState() {
@@ -27,88 +34,117 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen> with 
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-
-    _startQueuePing('voice');
-    _findMatch();
+    unawaited(_startSearch());
   }
 
-  void _startQueuePing(String mode) {
-    _sendPing(mode, 'ping');
-    _pingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      _sendPing(mode, 'ping');
-    });
-  }
-
-  void _sendPing(String mode, String action) {
-    final AuthController authController = Get.find<AuthController>();
-    final userId = authController.currentUser.value?.id;
-    if (userId == null) return;
-
-    authController.apiService.post(
-      '${ApiConstants.baseUrl}/match-queue-ping.php',
-      data: {
-        'user_id': userId,
-        'mode': mode,
-        'action': action,
-      },
-    ).catchError((e) => print('Queue ping error: $e'));
-  }
-
-  Future<void> _findMatch() async {
-    final AuthController authController = Get.find<AuthController>();
-    final userId = authController.currentUser.value?.id;
-    final DiscoveryController discoveryController = Get.put(DiscoveryController());
-    final genderPref = discoveryController.genderPreference.value;
-
-    if (userId == null) {
-      Get.back();
-      return;
-    }
-
+  Future<void> _startSearch() async {
+    if (_isPolling || _hasMatched) return;
+    _isPolling = true;
     try {
-      await Future.delayed(const Duration(seconds: 3));
-
-      final response = await authController.apiService.get(
-        '${ApiConstants.baseUrl}/voice-match-find.php',
-        params: {
-          'user_id': userId,
-          'gender_pref': genderPref,
-        },
+      final preference = Get.find<DiscoveryController>().genderPreference.value;
+      final response = await _authController.apiService.post(
+        ApiConstants.voiceMatchSession,
+        data: {'action': 'search', 'gender_preference': preference},
       );
-
-      if (response.data['success'] == true) {
-        final partnerData = response.data['data'];
-        if (mounted) {
-          setState(() {
-            _statusText = 'Voice Match Found! Connecting...';
-          });
-        }
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) {
-          Get.off(() => VoiceMatchCallScreen(partner: partnerData));
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _isSearching = false;
-            _statusText = response.data['message'] ?? 'No match found.';
-          });
-        }
+      if (!mounted) return;
+      if (response.data['success'] != true) {
+        throw StateError(
+          response.data['message']?.toString() ??
+              'Unable to start Voice Match.',
+        );
       }
-    } catch (e) {
+      await _handleMatchResponse(Map<String, dynamic>.from(response.data));
+      if (mounted && !_hasMatched && _isSearching) {
+        _pollTimer?.cancel();
+        _pollTimer = Timer.periodic(
+          const Duration(seconds: 2),
+          (_) => unawaited(_pollMatch()),
+        );
+      }
+    } catch (error) {
       if (mounted) {
         setState(() {
           _isSearching = false;
-          _statusText = 'No online users found right now. Try again later!';
+          _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+          _statusText = 'Voice Match is unavailable';
         });
       }
+      unawaited(_leaveQueue());
+    } finally {
+      _isPolling = false;
     }
+  }
+
+  Future<void> _pollMatch() async {
+    if (_isPolling || _hasMatched || !_isSearching) return;
+    _isPolling = true;
+    try {
+      final response = await _authController.apiService.post(
+        ApiConstants.voiceMatchSession,
+        data: {'action': 'poll'},
+      );
+      if (!mounted) return;
+      if (response.data['success'] != true) {
+        throw StateError(
+          response.data['message']?.toString() ?? 'Voice Match polling failed.',
+        );
+      }
+      await _handleMatchResponse(Map<String, dynamic>.from(response.data));
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _statusText = 'Reconnecting to matchmaking...';
+          _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+        });
+      }
+    } finally {
+      _isPolling = false;
+    }
+  }
+
+  Future<void> _handleMatchResponse(Map<String, dynamic> response) async {
+    if (response['status'] != 'matched') {
+      if (mounted) {
+        setState(() {
+          _statusText = 'Finding voice partner...';
+          _errorMessage = null;
+        });
+      }
+      return;
+    }
+
+    final session = Map<String, dynamic>.from(response['data'] as Map);
+    _hasMatched = true;
+    _pollTimer?.cancel();
+    if (mounted) {
+      setState(() => _statusText = 'Voice Match found! Connecting...');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    Get.off(() => VoiceMatchCallScreen(session: session));
+  }
+
+  Future<void> _leaveQueue() async {
+    try {
+      await _authController.apiService.post(
+        ApiConstants.voiceMatchSession,
+        data: {'action': 'leave'},
+      );
+    } catch (error) {
+      debugPrint('Unable to leave Voice Match queue: $error');
+    }
+  }
+
+  void _cancelSearch() {
+    _pollTimer?.cancel();
+    unawaited(_leaveQueue());
+    Get.back();
   }
 
   @override
   void dispose() {
-    _pingTimer?.cancel();
-    _sendPing('voice', 'leave');
+    _pollTimer?.cancel();
+    if (!_hasMatched) unawaited(_leaveQueue());
     _controller.dispose();
     super.dispose();
   }
@@ -123,28 +159,31 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen> with 
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    RotationTransition(
-                      turns: _controller,
-                      child: Container(
-                        width: 240,
-                        height: 240,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.blue.withValues(alpha: 0.3), width: 2),
-                          gradient: SweepGradient(
-                            colors: [
-                              Colors.blue.withValues(alpha: 0.0),
-                              Colors.blue.withValues(alpha: 0.4),
-                            ],
+                    if (_isSearching)
+                      RotationTransition(
+                        turns: _controller,
+                        child: Container(
+                          width: 240,
+                          height: 240,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                            gradient: SweepGradient(
+                              colors: [
+                                Colors.blue.withValues(alpha: 0),
+                                Colors.blue.withValues(alpha: 0.4),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     Container(
                       width: 120,
                       height: 120,
@@ -163,31 +202,48 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen> with 
                 const SizedBox(height: 50),
                 Text(
                   _statusText,
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Searching across voice channels...',
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                Text(
+                  _errorMessage ??
+                      'We will connect you as soon as someone compatible is ready.',
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                if (!_isSearching)
+                if (!_isSearching && _errorMessage != null)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    onPressed: () => Get.back(),
-                    child: const Text('Back to Matches'),
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = true;
+                        _errorMessage = null;
+                        _statusText = 'Finding voice partner...';
+                      });
+                      unawaited(_startSearch());
+                    },
+                    child: const Text('Try again'),
                   )
                 else
                   TextButton(
-                    onPressed: () => Get.back(),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                    onPressed: _cancelSearch,
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.white70),
+                    ),
                   ),
               ],
             ),

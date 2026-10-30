@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../../core/constants/api_constants.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/discovery_controller.dart';
-import '../../app/theme/app_colors.dart';
 import 'soul_match_chat_screen.dart';
 
 class SoulMatchWaitingScreen extends StatefulWidget {

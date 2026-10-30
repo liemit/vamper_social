@@ -48,13 +48,6 @@ try {
         ('Khung Cổng Vũ Trụ Vamper', 'profile_frame', 'frame_galaxy', 750),
         ('Khung Rồng Đêm Huyền Thoại', 'profile_frame', 'frame_dragon', 1200),
 
-        ('Khung Khán Phòng Cơ Bản', 'party_frame', 'party_simple', 0),
-        ('Khung Tiệc Hồng Ngọt Ngào', 'party_frame', 'party_pink', 0),
-        ('Khung Tiệc Hoàng Gia VIP', 'party_frame', 'party_royal', 250),
-        ('Khung Sàn Disco Cyberpunk', 'party_frame', 'party_disco', 450),
-        ('Khung Vũ Trường Nightclub', 'party_frame', 'party_club', 700),
-        ('Khung Cung Điện Kim Cương', 'party_frame', 'party_palace', 1000),
-
         ('Avatar Nam Trẻ Trung', 'avatar', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200', 0),
         ('Avatar Nữ Anime Dễ Thương', 'avatar', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200', 0),
         ('Avatar Gamer Neon Boy', 'avatar', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200', 0),
@@ -67,7 +60,12 @@ try {
     }
 
     // Fetch shop items
-    $stmt = $db->query("SELECT id, name, type, image_url, price_coins FROM shop_items ORDER BY price_coins ASC");
+    $stmt = $db->query(
+        "SELECT id, name, type, image_url, price_coins
+         FROM shop_items
+         WHERE type IN ('profile_frame', 'avatar')
+         ORDER BY price_coins ASC"
+    );
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $owned_item_ids = [];

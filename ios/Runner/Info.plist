@@ -27,7 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Vamper uses your microphone for live voice conversations in Party rooms.</string>
+	<string>Vamper uses your microphone for Party rooms and voice or video calls.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Vamper uses your camera for video calls.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

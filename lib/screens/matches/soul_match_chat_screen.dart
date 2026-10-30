@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
-import '../../app/theme/app_colors.dart';
 
 class SoulMatchChatScreen extends StatefulWidget {
   final Map<String, dynamic> partner;

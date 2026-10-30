@@ -53,6 +53,12 @@ try {
         echo json_encode(["success" => false, "message" => "Item not found."]);
         exit();
     }
+    if ($item['type'] === 'party_frame') {
+        $db->rollBack();
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Party frames are no longer available in the shop."]);
+        exit();
+    }
     $price = (int)$item['price_coins'];
     if ($price < 0) {
         $db->rollBack();

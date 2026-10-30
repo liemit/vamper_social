@@ -24,23 +24,6 @@ class _PartyTabState extends State<PartyTab> {
 
   final categories = ['🔥 Trending', '🎵 Music', '☕ Chill', '💕 Dating'];
 
-  Color _partyFrameAccent(String? code) {
-    switch (code) {
-      case 'party_pink':
-        return const Color(0xFFE94E9B);
-      case 'party_royal':
-        return const Color(0xFFFFC857);
-      case 'party_disco':
-        return const Color(0xFF31D6E8);
-      case 'party_club':
-        return const Color(0xFF8A6CFF);
-      case 'party_palace':
-        return const Color(0xFF50D6B2);
-      default:
-        return AppColors.primary.withValues(alpha: 0.2);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -458,9 +441,6 @@ class _PartyTabState extends State<PartyTab> {
                 itemCount: displayList.length,
                 itemBuilder: (context, index) {
                   final party = displayList[index];
-                  final frameAccent = _partyFrameAccent(
-                    party['host_party_frame_code']?.toString(),
-                  );
                   final count = party['participants_count'] ?? 1;
 
                   return FadeInUp(
@@ -482,10 +462,7 @@ class _PartyTabState extends State<PartyTab> {
                             ),
                           ],
                           border: Border.all(
-                            color: frameAccent,
-                            width: party['host_party_frame_code'] == null
-                                ? 1
-                                : 2,
+                            color: AppColors.primary.withValues(alpha: 0.15),
                           ),
                         ),
                         child: Row(

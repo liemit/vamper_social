@@ -17,13 +17,18 @@ if (empty($message_id) || empty($user_id)) {
 
 try {
     // Verify ownership
-    $stmt = $db->prepare("SELECT id, sender_id FROM messages WHERE id = :mid LIMIT 1");
+    $stmt = $db->prepare("SELECT id, sender_id, message_type FROM messages WHERE id = :mid LIMIT 1");
     $stmt->execute([':mid' => $message_id]);
     $msg = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$msg || intval($msg['sender_id']) !== intval($user_id)) {
         http_response_code(403);
         echo json_encode(["success" => false, "message" => "Unauthorized to recall this message."]);
+        exit();
+    }
+    if ($msg['message_type'] === 'gift') {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Gift messages cannot be recalled."]);
         exit();
     }
 

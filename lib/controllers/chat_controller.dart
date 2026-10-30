@@ -5,6 +5,7 @@ import 'package:dio/dio.dart' as dio;
 import 'package:image_picker/image_picker.dart';
 import '../core/constants/api_constants.dart';
 import '../models/conversation_model.dart';
+import '../models/gift_model.dart';
 import '../models/message_model.dart';
 import '../services/api_service.dart';
 import 'auth_controller.dart';
@@ -22,8 +23,80 @@ class ChatController extends GetxController {
   Timer? _pollingTimer;
   Timer? _notificationTimer;
   int? _activeConversationId;
+  final Map<String, String> _pendingGiftRequestIds = {};
+  bool _isSendingGift = false;
 
   bool get hasUnreadMessages => conversations.any((c) => c.unreadCount > 0);
+
+  Future<List<GiftModel>> fetchGifts() async {
+    final response = await _apiService.get(ApiConstants.getGifts);
+    if (response.data['success'] != true) {
+      throw StateError(response.data['message']?.toString() ?? 'Unable to load gifts.');
+    }
+    final data = response.data['data'] as List? ?? const [];
+    return data
+        .map((gift) => GiftModel.fromJson(Map<String, dynamic>.from(gift as Map)))
+        .toList();
+  }
+
+  Future<bool> sendGift({
+    required int conversationId,
+    required String partnerId,
+    required GiftModel gift,
+  }) async {
+    final userId = _authController.currentUser.value?.id;
+    if (userId == null || _isSendingGift) return false;
+
+    final requestKey = '$conversationId:$partnerId:${gift.id}';
+    final requestId = _pendingGiftRequestIds.putIfAbsent(
+      requestKey,
+      GiftModel.createRequestId,
+    );
+    try {
+      _isSendingGift = true;
+      isSending.value = true;
+      final response = await _apiService.post(
+        ApiConstants.sendGift,
+        data: {
+          'context_type': 'chat',
+          'context_id': conversationId,
+          'receiver_id': int.tryParse(partnerId),
+          'gift_id': gift.id,
+          'request_id': requestId,
+        },
+      );
+      if (response.data['success'] != true) {
+        throw StateError(
+          response.data['message']?.toString() ?? 'Unable to send this gift.',
+        );
+      }
+      _pendingGiftRequestIds.remove(requestKey);
+
+      final data = Map<String, dynamic>.from(response.data['data'] as Map);
+      messages.add(
+        MessageModel.fromJson(Map<String, dynamic>.from(data)),
+      );
+      final remainingCoins = int.tryParse(data['remaining_coins'].toString());
+      final currentUser = _authController.currentUser.value;
+      if (remainingCoins != null && currentUser != null) {
+        await _authController.updateCachedUser(
+          currentUser.copyWith(coins: remainingCoins),
+        );
+      }
+      fetchConversations();
+      return true;
+    } catch (error) {
+      Get.snackbar(
+        'Unable to send gift',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    } finally {
+      _isSendingGift = false;
+      isSending.value = false;
+    }
+  }
 
   @override
   void onInit() {
@@ -59,7 +132,7 @@ class ChatController extends GetxController {
       if (response.data['success'] == true) {
         final List data = response.data['data'] ?? [];
         for (var notif in data) {
-          if (notif['type'] == 'follow') {
+          if (notif['type'] == 'follow' || notif['type'] == 'gift') {
             Get.snackbar(
               notif['title'] ?? 'Notification',
               notif['body'] ?? 'You have a new update!',

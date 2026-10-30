@@ -17,7 +17,6 @@ class _StoreScreenState extends State<StoreScreen> {
   final RxList<Map<String, dynamic>> _items = <Map<String, dynamic>>[].obs;
   final RxList<int> _ownedItemIds = <int>[].obs;
   final RxnInt _activeFrameId = RxnInt();
-  final RxnInt _activePartyFrameId = RxnInt();
   final RxnInt _activeAvatarId = RxnInt();
   final RxBool _isLoading = false.obs;
 
@@ -46,9 +45,6 @@ class _StoreScreenState extends State<StoreScreen> {
         _activeFrameId.value = int.tryParse(
           response.data['active_profile_frame_id']?.toString() ?? '',
         );
-        _activePartyFrameId.value = int.tryParse(
-          response.data['active_party_frame_id']?.toString() ?? '',
-        );
         _activeAvatarId.value = int.tryParse(
           response.data['active_avatar_item_id']?.toString() ?? '',
         );
@@ -58,10 +54,7 @@ class _StoreScreenState extends State<StoreScreen> {
           await _authController.updateCachedUser(
             currentUser.copyWith(
               activeProfileFrameId: _activeFrameId.value,
-              activePartyFrameId: _activePartyFrameId.value,
               activeProfileFrameCode: response.data['active_profile_frame_code']
-                  ?.toString(),
-              activePartyFrameCode: response.data['active_party_frame_code']
                   ?.toString(),
             ),
           );
@@ -216,14 +209,6 @@ class _StoreScreenState extends State<StoreScreen> {
                 currentUser.copyWith(profilePhoto: photo),
               );
             }
-          } else if (type == 'party_frame') {
-            _activePartyFrameId.value = itemId;
-            await _authController.updateCachedUser(
-              currentUser.copyWith(
-                activePartyFrameId: itemId,
-                activePartyFrameCode: response.data['frame_code']?.toString(),
-              ),
-            );
           }
         }
         Get.snackbar(
@@ -251,7 +236,7 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
@@ -278,7 +263,6 @@ class _StoreScreenState extends State<StoreScreen> {
             indicatorColor: AppColors.primary,
             tabs: [
               Tab(text: 'Frames 🖼️'),
-              Tab(text: 'Party 👑'),
               Tab(text: 'Avatars 👤'),
             ],
           ),
@@ -345,7 +329,6 @@ class _StoreScreenState extends State<StoreScreen> {
                 return TabBarView(
                   children: [
                     _buildItemCategoryGrid('profile_frame'),
-                    _buildItemCategoryGrid('party_frame'),
                     _buildItemCategoryGrid('avatar'),
                   ],
                 );
@@ -399,7 +382,6 @@ class _StoreScreenState extends State<StoreScreen> {
           final isOwned = _ownedItemIds.contains(itemId);
           final isEquipped = switch (categoryType) {
             'profile_frame' => _activeFrameId.value == itemId,
-            'party_frame' => _activePartyFrameId.value == itemId,
             'avatar' => _activeAvatarId.value == itemId,
             _ => false,
           };

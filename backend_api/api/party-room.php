@@ -3,6 +3,7 @@ require_once '../config/cors.php';
 require_once '../config/database.php';
 require_once __DIR__ . '/libs/ApiAuth.php';
 require_once __DIR__ . '/libs/LiveKit.php';
+require_once __DIR__ . '/libs/GiftSystem.php';
 
 function partyRoomRespond(int $status, array $body): void
 {
@@ -19,6 +20,8 @@ function ensurePartyRoomTables(PDO $db): void
         seat_index TINYINT NULL,
         is_hand_raised TINYINT(1) NOT NULL DEFAULT 0,
         is_cohost TINYINT(1) NOT NULL DEFAULT 0,
+        can_share_screen TINYINT(1) NOT NULL DEFAULT 0,
+        is_mic_locked TINYINT(1) NOT NULL DEFAULT 0,
         last_seen DATETIME NOT NULL,
         PRIMARY KEY (party_id, user_id),
         UNIQUE KEY uq_party_member_seat (party_id, seat_index),
@@ -36,11 +39,33 @@ function ensurePartyRoomTables(PDO $db): void
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         party_id INT NOT NULL,
         user_id INT NOT NULL,
+        target_user_id INT NULL,
         event_type VARCHAR(20) NOT NULL,
-        payload VARCHAR(32) NOT NULL,
+        payload TEXT NOT NULL,
         created_at DATETIME NOT NULL,
         KEY idx_party_events (party_id, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    foreach ([
+        'can_share_screen' => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'is_mic_locked' => 'TINYINT(1) NOT NULL DEFAULT 0',
+    ] as $column => $definition) {
+        $columnQuery = $db->query("SHOW COLUMNS FROM party_members LIKE " . $db->quote($column));
+        if ($columnQuery->fetch(PDO::FETCH_ASSOC) === false) {
+            $db->exec("ALTER TABLE party_members ADD COLUMN `$column` $definition");
+        }
+    }
+
+    $targetColumn = $db->query("SHOW COLUMNS FROM party_events LIKE 'target_user_id'");
+    if ($targetColumn->fetch(PDO::FETCH_ASSOC) === false) {
+        $db->exec('ALTER TABLE party_events ADD COLUMN target_user_id INT NULL');
+    }
+
+    $payloadColumn = $db->query("SHOW COLUMNS FROM party_events LIKE 'payload'");
+    $payloadDefinition = $payloadColumn->fetch(PDO::FETCH_ASSOC);
+    if ($payloadDefinition && stripos((string)$payloadDefinition['Type'], 'text') === false) {
+        $db->exec('ALTER TABLE party_events MODIFY payload TEXT NOT NULL');
+    }
 }
 
 function partyRoomName(int $partyId): string
@@ -60,7 +85,7 @@ if (!$partyId || $partyId < 1) {
 }
 
 try {
-    if ($action === 'join') {
+    if ($action === 'join' || $action === 'send_gift') {
         ensurePartyRoomTables($db);
     }
     $partyQuery = $db->prepare(
@@ -126,10 +151,12 @@ try {
         ]);
 
         $seatQuery = $db->prepare(
-            'SELECT seat_index FROM party_members WHERE party_id = :party_id AND user_id = :user_id'
+            'SELECT seat_index, can_share_screen, is_mic_locked
+             FROM party_members WHERE party_id = :party_id AND user_id = :user_id'
         );
         $seatQuery->execute([':party_id' => $partyId, ':user_id' => $userId]);
-        $seatIndex = $seatQuery->fetchColumn();
+        $member = $seatQuery->fetch(PDO::FETCH_ASSOC);
+        $seatIndex = $member['seat_index'];
         $settings = liveKitSettings();
         $liveKitToken = $settings === null
             ? null
@@ -139,13 +166,18 @@ try {
                 (string)$party['title'],
                 $roomName,
                 false,
-                $seatIndex !== false && $seatIndex !== null
+                $seatIndex !== null,
+                3600,
+                $isHost || (bool)$member['can_share_screen'],
+                (bool)$member['is_mic_locked']
             );
         partyRoomRespond(200, [
             'success' => true,
             'livekit_configured' => $settings !== null,
             'livekit_url' => $settings['url'] ?? null,
             'livekit_token' => $liveKitToken,
+            'can_share_screen' => $isHost || (bool)$member['can_share_screen'],
+            'is_mic_locked' => (bool)$member['is_mic_locked'],
             'message' => $settings === null
                 ? 'Party membership started; LiveKit server credentials are not configured.'
                 : 'Connected to the party service.',
@@ -153,7 +185,8 @@ try {
     }
 
     $membership = $db->prepare(
-        'SELECT seat_index, is_cohost FROM party_members WHERE party_id = :party_id AND user_id = :user_id LIMIT 1'
+        'SELECT seat_index, is_cohost, can_share_screen, is_mic_locked
+         FROM party_members WHERE party_id = :party_id AND user_id = :user_id LIMIT 1'
     );
     $membership->execute([':party_id' => $partyId, ':user_id' => $userId]);
     $member = $membership->fetch(PDO::FETCH_ASSOC);
@@ -182,8 +215,14 @@ try {
                     (string)$party['title'],
                     $roomName,
                     false,
-                    $member['seat_index'] !== null
+                    $member['seat_index'] !== null,
+                    3600,
+                    $isHost || (bool)$member['can_share_screen'],
+                    (bool)$member['is_mic_locked']
                 ),
+                'can_publish' => $member['seat_index'] !== null,
+                'can_share_screen' => $isHost || (bool)$member['can_share_screen'],
+                'is_mic_locked' => (bool)$member['is_mic_locked'],
             ]);
 
         case 'sync':
@@ -195,6 +234,7 @@ try {
 
             $participantsQuery = $db->prepare(
                 'SELECT pm.user_id, pm.seat_index, pm.is_hand_raised, pm.is_cohost,
+                        pm.can_share_screen, pm.is_mic_locked,
                         u.full_name, u.profile_photo, frame.image_url AS active_profile_frame_code
                  FROM party_members pm
                  INNER JOIN users u ON u.id = pm.user_id
@@ -218,9 +258,11 @@ try {
 
             $eventId = max(0, (int)($data['after_event_id'] ?? 0));
             $eventsQuery = $db->prepare(
-                'SELECT e.id, e.user_id, e.event_type, e.payload, u.full_name
+                'SELECT e.id, e.user_id, e.target_user_id, e.event_type, e.payload,
+                        u.full_name, target.full_name AS target_name
                  FROM party_events e
                  INNER JOIN users u ON u.id = e.user_id
+                 LEFT JOIN users target ON target.id = e.target_user_id
                  WHERE e.party_id = :party_id AND e.id > :after_id
                  ORDER BY e.id ASC LIMIT 100'
             );
@@ -244,6 +286,8 @@ try {
                         'seat_index' => $member['seat_index'] === null ? null : (int)$member['seat_index'],
                         'is_hand_raised' => (int)$member['is_hand_raised'],
                         'is_cohost' => $isCohost,
+                        'can_share_screen' => $isHost || (bool)$member['can_share_screen'],
+                        'is_mic_locked' => (bool)$member['is_mic_locked'],
                     ],
                     'is_host' => $isHost,
                 ],
@@ -251,7 +295,11 @@ try {
 
         case 'take_seat':
             $seatIndex = filter_var($data['seat_index'] ?? null, FILTER_VALIDATE_INT);
-            if ($seatIndex === false || $seatIndex < 1 || $seatIndex > 9 || $isHost) {
+            if (
+                $seatIndex === false
+                || $seatIndex < ($isHost ? 0 : 1)
+                || $seatIndex > 9
+            ) {
                 partyRoomRespond(400, ['success' => false, 'message' => 'Choose an available participant seat.']);
             }
             $db->beginTransaction();
@@ -260,7 +308,8 @@ try {
                  WHERE party_id = :party_id AND seat_index = :seat_index FOR UPDATE'
             );
             $seatQuery->execute([':party_id' => $partyId, ':seat_index' => $seatIndex]);
-            if ($seatQuery->fetchColumn()) {
+            $seatOwner = $seatQuery->fetchColumn();
+            if ($seatOwner !== false && (int)$seatOwner !== $userId) {
                 $db->rollBack();
                 partyRoomRespond(409, ['success' => false, 'message' => 'That seat has already been taken.']);
             }
@@ -308,6 +357,28 @@ try {
             $sendMessage->execute([':party_id' => $partyId, ':user_id' => $userId, ':message' => $text]);
             partyRoomRespond(200, ['success' => true, 'message_id' => (int)$db->lastInsertId()]);
 
+        case 'send_gift':
+            $giftId = filter_var($data['gift_id'] ?? null, FILTER_VALIDATE_INT);
+            $targetId = filter_var($data['target_user_id'] ?? null, FILTER_VALIDATE_INT);
+            if (!$giftId || !$targetId) {
+                partyRoomRespond(400, ['success' => false, 'message' => 'Choose a gift and a participant.']);
+            }
+            ensureGiftTables($db);
+            try {
+                $gift = sendGiftTransaction(
+                    $db,
+                    $userId,
+                    $targetId,
+                    $giftId,
+                    'party',
+                    $partyId,
+                    (string)($data['request_id'] ?? '')
+                );
+            } catch (InvalidArgumentException | DomainException $error) {
+                partyRoomRespond(400, ['success' => false, 'message' => $error->getMessage()]);
+            }
+            partyRoomRespond(200, ['success' => true, 'data' => $gift]);
+
         case 'react':
             $reaction = (string)($data['reaction'] ?? '');
             if (!in_array($reaction, ['👏', '😂', '🔥', '🎉', '❤️'], true)) {
@@ -318,6 +389,60 @@ try {
                  VALUES (:party_id, :user_id, 'reaction', :payload, UTC_TIMESTAMP())"
             );
             $event->execute([':party_id' => $partyId, ':user_id' => $userId, ':payload' => $reaction]);
+            partyRoomRespond(200, ['success' => true]);
+
+        case 'send_effect':
+            $effect = (string)($data['effect'] ?? '');
+            $targetId = filter_var($data['target_user_id'] ?? null, FILTER_VALIDATE_INT);
+            if (!in_array($effect, ['❤️', '💩', '🔫', '🐶', '🦁', '🥁'], true)) {
+                partyRoomRespond(400, ['success' => false, 'message' => 'Unsupported party effect.']);
+            }
+            if (!$targetId || $targetId === $userId) {
+                partyRoomRespond(400, ['success' => false, 'message' => 'Choose another participant.']);
+            }
+            $targetQuery = $db->prepare(
+                'SELECT 1 FROM party_members WHERE party_id = :party_id AND user_id = :user_id LIMIT 1'
+            );
+            $targetQuery->execute([':party_id' => $partyId, ':user_id' => $targetId]);
+            if (!$targetQuery->fetchColumn()) {
+                partyRoomRespond(404, ['success' => false, 'message' => 'That participant is no longer in the room.']);
+            }
+            $event = $db->prepare(
+                "INSERT INTO party_events (party_id, user_id, target_user_id, event_type, payload, created_at)
+                 VALUES (:party_id, :user_id, :target_user_id, 'effect', :payload, UTC_TIMESTAMP())"
+            );
+            $event->execute([
+                ':party_id' => $partyId,
+                ':user_id' => $userId,
+                ':target_user_id' => $targetId,
+                ':payload' => $effect,
+            ]);
+            partyRoomRespond(200, ['success' => true]);
+
+        case 'set_screen_share_permission':
+            if (!$isHost) {
+                partyRoomRespond(403, ['success' => false, 'message' => 'Only the host can grant screen sharing.']);
+            }
+            $targetId = filter_var($data['target_user_id'] ?? null, FILTER_VALIDATE_INT);
+            if (!$targetId || $targetId === $hostId) {
+                partyRoomRespond(400, ['success' => false, 'message' => 'Choose another participant.']);
+            }
+            $permission = $db->prepare(
+                'UPDATE party_members SET can_share_screen = :allowed
+                 WHERE party_id = :party_id AND user_id = :target_id'
+            );
+            $participantCheck = $db->prepare(
+                'SELECT 1 FROM party_members WHERE party_id = :party_id AND user_id = :target_id'
+            );
+            $participantCheck->execute([':party_id' => $partyId, ':target_id' => $targetId]);
+            if (!$participantCheck->fetchColumn()) {
+                partyRoomRespond(404, ['success' => false, 'message' => 'That participant is no longer in the room.']);
+            }
+            $permission->execute([
+                ':allowed' => !empty($data['allowed']) ? 1 : 0,
+                ':party_id' => $partyId,
+                ':target_id' => $targetId,
+            ]);
             partyRoomRespond(200, ['success' => true]);
 
         case 'set_cohost':
@@ -344,6 +469,7 @@ try {
 
         case 'mute_participant':
         case 'remove_participant':
+        case 'set_mic_lock':
             if (!$canModerate) {
                 partyRoomRespond(403, ['success' => false, 'message' => 'Host or co-host permission is required.']);
             }
@@ -365,6 +491,27 @@ try {
                 partyRoomRespond(200, ['success' => true, 'message' => 'Participant removed from the party.']);
             }
 
+            $shouldLock = $action === 'mute_participant' || !empty($data['locked']);
+            $lockStmt = $db->prepare(
+                'UPDATE party_members SET is_mic_locked = :locked
+                 WHERE party_id = :party_id AND user_id = :target_id'
+            );
+            $participantCheck = $db->prepare(
+                'SELECT 1 FROM party_members WHERE party_id = :party_id AND user_id = :target_id'
+            );
+            $participantCheck->execute([':party_id' => $partyId, ':target_id' => $targetId]);
+            if (!$participantCheck->fetchColumn()) {
+                partyRoomRespond(404, ['success' => false, 'message' => 'That participant is no longer in the room.']);
+            }
+            $lockStmt->execute([
+                ':locked' => $shouldLock ? 1 : 0,
+                ':party_id' => $partyId,
+                ':target_id' => $targetId,
+            ]);
+            if (!$shouldLock) {
+                partyRoomRespond(200, ['success' => true, 'message' => 'Participant microphone unlocked.']);
+            }
+
             $participantInfo = liveKitAdminRequest($settings, 'GetParticipant', [
                 'room' => $roomName,
                 'identity' => (string)$targetId,
@@ -383,10 +530,12 @@ try {
                     $mutedTracks++;
                 }
             }
-            if ($mutedTracks === 0) {
-                partyRoomRespond(409, ['success' => false, 'message' => 'The participant has no active microphone track.']);
-            }
-            partyRoomRespond(200, ['success' => true, 'message' => 'Participant microphone muted.']);
+            partyRoomRespond(200, [
+                'success' => true,
+                'message' => $mutedTracks > 0
+                    ? 'Participant microphone locked and muted.'
+                    : 'Participant microphone locked.',
+            ]);
 
         case 'leave':
             $leave = $db->prepare('DELETE FROM party_members WHERE party_id = :party_id AND user_id = :user_id');

@@ -31,10 +31,26 @@ function liveKitToken(
     string $room,
     bool $roomAdmin = false,
     bool $canPublish = true,
-    int $ttlSeconds = 3600
+    int $ttlSeconds = 3600,
+    bool $canShareScreen = false,
+    bool $micLocked = false,
+    bool $canPublishCamera = false
 ): string
 {
     $now = time();
+    $publishSources = [];
+    if ($canPublish && !$micLocked) {
+        $publishSources[] = 'microphone';
+    }
+    if ($canPublish && $canShareScreen) {
+        $publishSources = array_merge(
+            $publishSources,
+            ['screen_share', 'screen_share_audio']
+        );
+    }
+    if ($canPublish && $canPublishCamera) {
+        $publishSources[] = 'camera';
+    }
     $payload = [
         'iss' => $settings['api_key'],
         'sub' => $identity,
@@ -48,9 +64,7 @@ function liveKitToken(
                 'roomJoin' => true,
                 'room' => $room,
                 'canPublish' => $canPublish,
-                'canPublishSources' => $canPublish
-                    ? ['microphone', 'screen_share', 'screen_share_audio']
-                    : [],
+                'canPublishSources' => $publishSources,
                 'canSubscribe' => true,
                 'canPublishData' => true,
             ],

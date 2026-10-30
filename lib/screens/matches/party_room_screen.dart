@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_background/flutter_background.dart';
@@ -10,7 +11,9 @@ import 'package:livekit_client/livekit_client.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../models/gift_model.dart';
 import '../../widgets/user_avatar_with_frame.dart';
+import '../wallet/coin_shop_screen.dart';
 
 class PartyRoomScreen extends StatefulWidget {
   final Map<String, dynamic> party;
@@ -34,7 +37,11 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
 
   bool _isMuted = true;
   bool _isScreenSharing = false;
+  bool _canShareScreen = false;
+  bool _isMicLocked = false;
   String? _playingEffect;
+  final Map<String, String> _seatEffects = {};
+  final Map<String, int> _seatEffectVersions = {};
   bool _isCohost = false;
   bool _isJoining = true;
   bool _roomConnected = false;
@@ -42,6 +49,8 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   bool _isHandRaised = false;
   bool _isLeaving = false;
   bool _isSyncing = false;
+  bool _isSendingGift = false;
+  final Map<String, String> _pendingGiftRequestIds = {};
   String? _roomStatus;
   int _lastMessageId = 0;
   int _lastEventId = 0;
@@ -100,41 +109,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   bool get _canModerate => isHost || _isCohost;
 
   List<Color> get _partyBackgroundColors {
-    switch (widget.party['host_party_frame_code']) {
-      case 'party_pink':
-        return [
-          const Color(0xFF32152D),
-          const Color(0xFF751C55),
-          const Color(0xFF291336),
-        ];
-      case 'party_royal':
-        return [
-          const Color(0xFF2C1A05),
-          const Color(0xFF5A3D12),
-          const Color(0xFF171026),
-        ];
-      case 'party_disco':
-        return [
-          const Color(0xFF062A3A),
-          const Color(0xFF55204D),
-          const Color(0xFF332A0B),
-        ];
-      case 'party_club':
-        return [
-          const Color(0xFF140B2B),
-          const Color(0xFF1F2861),
-          const Color(0xFF10192B),
-        ];
-      case 'party_palace':
-        return [
-          const Color(0xFF093638),
-          const Color(0xFF144949),
-          const Color(0xFF332817),
-        ];
-      case 'party_simple':
-      default:
-        return [const Color(0xFF0F0F1A), const Color(0xFF16162B)];
-    }
+    return [const Color(0xFF0F0F1A), const Color(0xFF16162B)];
   }
 
   int? get userSeatIndex {
@@ -175,6 +150,8 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
         payload: {'password': widget.accessPassword},
       );
       _hasJoinedParty = true;
+      _canShareScreen = response['can_share_screen'] == true;
+      _isMicLocked = response['is_mic_locked'] == true;
       if (!mounted || _isLeaving) {
         await _partyAction('leave');
         _hasJoinedParty = false;
@@ -274,6 +251,9 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
     await room.connect(url, token);
     _roomConnected = true;
     _roomStatus = null;
+    if (!_isMuted && !_isMicLocked) {
+      await room.localParticipant?.setMicrophoneEnabled(true);
+    }
     if (mounted) setState(() {});
   }
 
@@ -284,6 +264,11 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
       final token = response['livekit_token']?.toString();
       if (url == null || url.isEmpty || token == null || token.isEmpty) {
         throw StateError('The party service did not return a LiveKit token.');
+      }
+      _canShareScreen = response['can_share_screen'] == true;
+      _isMicLocked = response['is_mic_locked'] == true;
+      if (response['can_publish'] != true || _isMicLocked) {
+        _isMuted = true;
       }
       await _connectLiveKit(url, token);
     } catch (error) {
@@ -340,6 +325,14 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
               participant['is_hand_raised'] == '1',
           'isCohost':
               participant['is_cohost'] == 1 || participant['is_cohost'] == '1',
+          'canShareScreen':
+              participant['can_share_screen'] == true ||
+              participant['can_share_screen'] == 1 ||
+              participant['can_share_screen'] == '1',
+          'isMicLocked':
+              participant['is_mic_locked'] == true ||
+              participant['is_mic_locked'] == 1 ||
+              participant['is_mic_locked'] == '1',
         };
       }
 
@@ -352,6 +345,16 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
           self['is_cohost'] == true ||
           self['is_cohost'] == 1 ||
           self['is_cohost'] == '1';
+      final canShareScreen =
+          self['can_share_screen'] == true ||
+          self['can_share_screen'] == 1 ||
+          self['can_share_screen'] == '1';
+      final isMicLocked =
+          self['is_mic_locked'] == true ||
+          self['is_mic_locked'] == 1 ||
+          self['is_mic_locked'] == '1';
+      final permissionsChanged =
+          canShareScreen != _canShareScreen || isMicLocked != _isMicLocked;
       final newMessages = (data['messages'] as List? ?? const [])
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
@@ -367,6 +370,8 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
         _seats = updatedSeats;
         _isCohost = isCohost;
         _isHandRaised = isRaised;
+        _canShareScreen = canShareScreen;
+        _isMicLocked = isMicLocked;
         for (final message in newMessages) {
           final id = int.tryParse(message['id'].toString()) ?? 0;
           if (id > _lastMessageId) {
@@ -391,10 +396,82 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
               Future<void>.delayed(const Duration(seconds: 2), () {
                 if (mounted) setState(() => _playingEffect = null);
               });
+            } else if (event['event_type'] == 'effect' &&
+                event['target_user_id'] != null) {
+              final targetId = event['target_user_id'].toString();
+              final version = (_seatEffectVersions[targetId] ?? 0) + 1;
+              _seatEffectVersions[targetId] = version;
+              _seatEffects[targetId] = event['payload'].toString();
+              Future<void>.delayed(const Duration(seconds: 2), () {
+                if (mounted && _seatEffectVersions[targetId] == version) {
+                  setState(() => _seatEffects.remove(targetId));
+                }
+              });
+            } else if (event['event_type'] == 'gift') {
+              try {
+                final payload = Map<String, dynamic>.from(
+                  jsonDecode(event['payload'].toString()) as Map,
+                );
+                final senderName = event['full_name']?.toString() ?? 'Someone';
+                final receiverName =
+                    event['target_name']?.toString() ?? 'a participant';
+                final giftName = payload['name']?.toString() ?? 'a gift';
+                final emoji = payload['emoji']?.toString() ?? '🎁';
+                _messages.add({
+                  'user': senderName,
+                  'text': '$senderName sent $emoji $giftName to $receiverName',
+                  'isGift': true,
+                  'emoji': emoji,
+                  'giftName': giftName,
+                  'targetName': receiverName,
+                });
+                _playingEffect =
+                    '$emoji $senderName sent a gift to $receiverName';
+                Future<void>.delayed(const Duration(seconds: 3), () {
+                  if (mounted) setState(() => _playingEffect = null);
+                });
+              } on FormatException catch (error) {
+                debugPrint('Invalid Party gift event payload: $error');
+              } on TypeError catch (error) {
+                debugPrint('Invalid Party gift event shape: $error');
+              }
             }
           }
         }
       });
+      if (permissionsChanged) {
+        if (isMicLocked && !_isMuted) {
+          try {
+            await _room?.localParticipant?.setMicrophoneEnabled(false);
+          } catch (error) {
+            debugPrint('Unable to apply microphone lock immediately: $error');
+          }
+          _isMuted = true;
+        }
+        if (_isScreenSharing) {
+          try {
+            await _room?.localParticipant?.setScreenShareEnabled(false);
+          } catch (error) {
+            debugPrint(
+              'Unable to stop screen sharing after access change: $error',
+            );
+          }
+          _isScreenSharing = false;
+          if (!kIsWeb &&
+              defaultTargetPlatform == TargetPlatform.android &&
+              FlutterBackground.isBackgroundExecutionEnabled) {
+            try {
+              await FlutterBackground.disableBackgroundExecution();
+            } catch (error) {
+              debugPrint(
+                'Unable to stop screen-share background service: $error',
+              );
+            }
+          }
+        }
+        unawaited(_refreshMediaToken());
+        if (mounted) setState(() {});
+      }
     } catch (error) {
       if (error is DioException &&
           (error.response?.statusCode == 403 ||
@@ -515,6 +592,15 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
 
   Future<void> _takeSeat(int seatIndex) async {
     try {
+      if (_isScreenSharing) {
+        await _room?.localParticipant?.setScreenShareEnabled(false);
+        _isScreenSharing = false;
+        if (!kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.android &&
+            FlutterBackground.isBackgroundExecutionEnabled) {
+          await FlutterBackground.disableBackgroundExecution();
+        }
+      }
       await _partyAction('take_seat', payload: {'seat_index': seatIndex});
       await _refreshMediaToken();
       await _syncParty();
@@ -552,6 +638,14 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   }
 
   Future<void> _toggleMicrophone() async {
+    if (_isMicLocked) {
+      Get.snackbar(
+        'Microphone locked',
+        'The host has locked your microphone.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     if (!isUserSeated) {
       Get.snackbar(
         'Take a seat first',
@@ -585,14 +679,61 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   Future<void> _muteParticipant(String targetId) async {
     try {
       await _partyAction(
-        'mute_participant',
-        payload: {'target_user_id': int.tryParse(targetId)},
+        'set_mic_lock',
+        payload: {'target_user_id': int.tryParse(targetId), 'locked': true},
       );
-      Get.snackbar('Muted', 'The participant microphone was muted.');
+      Get.snackbar(
+        'Microphone locked',
+        'The participant microphone was locked.',
+      );
       await _syncParty();
     } catch (error) {
       Get.snackbar(
         'Unable to mute participant',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> _setMicrophoneLock(String targetId, bool locked) async {
+    try {
+      await _partyAction(
+        'set_mic_lock',
+        payload: {'target_user_id': int.tryParse(targetId), 'locked': locked},
+      );
+      Get.snackbar(
+        locked ? 'Microphone locked' : 'Microphone unlocked',
+        locked
+            ? 'The participant cannot turn their microphone on.'
+            : 'The participant can turn their microphone on again.',
+      );
+      await _syncParty();
+    } catch (error) {
+      Get.snackbar(
+        'Unable to change microphone access',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> _setScreenSharePermission(String targetId, bool allowed) async {
+    try {
+      await _partyAction(
+        'set_screen_share_permission',
+        payload: {'target_user_id': int.tryParse(targetId), 'allowed': allowed},
+      );
+      Get.snackbar(
+        allowed ? 'Screen sharing allowed' : 'Screen sharing disabled',
+        allowed
+            ? 'The participant can share their screen while seated.'
+            : 'The participant can no longer share their screen.',
+      );
+      await _syncParty();
+    } catch (error) {
+      Get.snackbar(
+        'Unable to update screen-share access',
         error.toString().replaceFirst('Bad state: ', ''),
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -661,6 +802,14 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   }
 
   void _handleSeatTap(int index) {
+    if (index == 0 && !isHost && _seats[index] == null) {
+      Get.snackbar(
+        'Host seat',
+        'The first seat is reserved for the party host.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     final seatData = _seats[index];
 
     if (seatData == null) {
@@ -686,7 +835,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              if (isMe && index != 0) ...[
+              if (isMe && !isHost && index != 0)
                 ListTile(
                   leading: const Icon(Icons.exit_to_app, color: Colors.orange),
                   title: const Text('Leave Chair'),
@@ -695,19 +844,38 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                     unawaited(_leaveSeat());
                   },
                 ),
+              if (isMe)
                 ListTile(
                   leading: Icon(
-                    _isMuted ? Icons.mic : Icons.mic_off,
-                    color: Colors.blue,
+                    _isMicLocked
+                        ? Icons.mic_off
+                        : (_isMuted ? Icons.mic : Icons.mic_off),
+                    color: _isMicLocked ? Colors.red : Colors.blue,
                   ),
-                  title: Text(_isMuted ? 'Unmute Mic' : 'Mute Mic'),
+                  title: Text(
+                    _isMicLocked
+                        ? 'Microphone locked by host'
+                        : (_isMuted ? 'Unmute Mic' : 'Mute Mic'),
+                  ),
                   onTap: () {
                     Get.back();
                     unawaited(_toggleMicrophone());
                   },
                 ),
-              ],
               if (!isMe) ...[
+                ListTile(
+                  leading: const Icon(Icons.card_giftcard, color: Colors.pink),
+                  title: const Text('Send a gift'),
+                  onTap: () {
+                    Get.back();
+                    unawaited(
+                      _showPartyGiftPicker(
+                        seatData['id'].toString(),
+                        seatData['name'].toString(),
+                      ),
+                    );
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.block, color: Colors.redAccent),
                   title: const Text('Block User 🚫'),
@@ -719,16 +887,55 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                     );
                   },
                 ),
+                ..._targetEffectActions(seatData['id'].toString()),
               ],
               if (!isMe && _canModerate) ...[
-                ListTile(
-                  leading: const Icon(Icons.mic_off, color: Colors.deepOrange),
-                  title: const Text('Mute microphone'),
-                  onTap: () {
-                    Get.back();
-                    unawaited(_muteParticipant(seatData['id'].toString()));
-                  },
-                ),
+                if (seatData['isMicLocked'] == true)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.green),
+                    title: const Text('Unlock microphone'),
+                    onTap: () {
+                      Get.back();
+                      unawaited(
+                        _setMicrophoneLock(seatData['id'].toString(), false),
+                      );
+                    },
+                  )
+                else
+                  ListTile(
+                    leading: const Icon(
+                      Icons.mic_off,
+                      color: Colors.deepOrange,
+                    ),
+                    title: const Text('Lock microphone'),
+                    onTap: () {
+                      Get.back();
+                      unawaited(_muteParticipant(seatData['id'].toString()));
+                    },
+                  ),
+                if (isHost)
+                  ListTile(
+                    leading: Icon(
+                      seatData['canShareScreen'] == true
+                          ? Icons.screen_share
+                          : Icons.screen_share_outlined,
+                      color: Colors.blue,
+                    ),
+                    title: Text(
+                      seatData['canShareScreen'] == true
+                          ? 'Revoke screen-share permission'
+                          : 'Allow screen sharing',
+                    ),
+                    onTap: () {
+                      Get.back();
+                      unawaited(
+                        _setScreenSharePermission(
+                          seatData['id'].toString(),
+                          seatData['canShareScreen'] != true,
+                        ),
+                      );
+                    },
+                  ),
                 if (isHost)
                   ListTile(
                     leading: Icon(
@@ -768,6 +975,304 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
     }
   }
 
+  List<Widget> _targetEffectActions(String targetId) {
+    const effects = [
+      ('❤️', 'Send a heart'),
+      ('💩', 'Throw a poop'),
+      ('🔫', 'Water-gun splash'),
+      ('🐶', 'Playful dog effect'),
+      ('🦁', 'Lion roar'),
+      ('🥁', 'Drum sound effect'),
+    ];
+    return effects
+        .map(
+          (effect) => ListTile(
+            leading: Text(effect.$1, style: const TextStyle(fontSize: 20)),
+            title: Text(effect.$2),
+            onTap: () {
+              Get.back();
+              unawaited(_sendTargetedEffect(effect.$1, targetId));
+            },
+          ),
+        )
+        .toList();
+  }
+
+  void _showParticipantActions(Map<String, dynamic> participant) {
+    final targetId = participant['user_id'].toString();
+    final canShareScreen =
+        participant['can_share_screen'] == true ||
+        participant['can_share_screen'] == 1 ||
+        participant['can_share_screen'] == '1';
+    final isMicLocked =
+        participant['is_mic_locked'] == true ||
+        participant['is_mic_locked'] == 1 ||
+        participant['is_mic_locked'] == '1';
+
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                participant['full_name']?.toString() ?? 'Participant',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.card_giftcard, color: Colors.pink),
+                title: const Text('Send a gift'),
+                onTap: () {
+                  Get.back();
+                  unawaited(
+                    _showPartyGiftPicker(
+                      targetId,
+                      participant['full_name']?.toString() ?? 'Participant',
+                    ),
+                  );
+                },
+              ),
+              if (this.isHost)
+                ListTile(
+                  leading: Icon(
+                    canShareScreen
+                        ? Icons.screen_share
+                        : Icons.screen_share_outlined,
+                    color: Colors.blue,
+                  ),
+                  title: Text(
+                    canShareScreen
+                        ? 'Revoke screen-share permission'
+                        : 'Allow screen sharing',
+                  ),
+                  onTap: () {
+                    Get.back();
+                    unawaited(
+                      _setScreenSharePermission(targetId, !canShareScreen),
+                    );
+                  },
+                ),
+              if (this.isHost)
+                ListTile(
+                  leading: Icon(
+                    isMicLocked ? Icons.mic : Icons.mic_off,
+                    color: isMicLocked ? Colors.green : Colors.deepOrange,
+                  ),
+                  title: Text(
+                    isMicLocked ? 'Unlock microphone' : 'Lock microphone',
+                  ),
+                  onTap: () {
+                    Get.back();
+                    unawaited(_setMicrophoneLock(targetId, !isMicLocked));
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  Future<void> _showPartyGiftPicker(String targetId, String targetName) async {
+    try {
+      final response = await _authController.apiService.get(
+        ApiConstants.getGifts,
+      );
+      if (response.data['success'] != true) {
+        throw StateError(
+          response.data['message']?.toString() ?? 'Unable to load gifts.',
+        );
+      }
+      final gifts = (response.data['data'] as List? ?? const [])
+          .map(
+            (item) =>
+                GiftModel.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList();
+      if (!mounted) return;
+      final coins = _authController.currentUser.value?.coins ?? 0;
+      Get.bottomSheet(
+        SafeArea(
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.58,
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Send a gift to $targetName',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('Your balance: 🪙 $coins'),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: GridView.builder(
+                    itemCount: gifts.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 1.7,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    itemBuilder: (context, index) {
+                      final gift = gifts[index];
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Get.back();
+                          unawaited(
+                            _confirmAndSendPartyGift(
+                              gift,
+                              targetId,
+                              targetName,
+                              coins,
+                            ),
+                          );
+                        },
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF1F6),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                gift.emoji,
+                                style: const TextStyle(fontSize: 30),
+                              ),
+                              Text(
+                                gift.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text('🪙 ${gift.priceCoins}'),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        isScrollControlled: true,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Gifts unavailable',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> _confirmAndSendPartyGift(
+    GiftModel gift,
+    String targetId,
+    String targetName,
+    int currentCoins,
+  ) async {
+    if (currentCoins < gift.priceCoins) {
+      final openCoinShop = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Not enough coins'),
+          content: Text(
+            'You need ${gift.priceCoins} coins to send this gift. Your balance is $currentCoins.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('Get coins'),
+            ),
+          ],
+        ),
+      );
+      if (openCoinShop == true) Get.to(() => const CoinShopScreen());
+      return;
+    }
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Confirm gift'),
+        content: Text(
+          'Send ${gift.emoji} ${gift.name} to $targetName for ${gift.priceCoins} coins?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Send gift'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || _isSendingGift) return;
+
+    final requestKey = '${widget.party['id']}:$targetId:${gift.id}';
+    final requestId = _pendingGiftRequestIds.putIfAbsent(
+      requestKey,
+      GiftModel.createRequestId,
+    );
+    setState(() => _isSendingGift = true);
+    try {
+      final response = await _partyAction(
+        'send_gift',
+        payload: {
+          'target_user_id': int.tryParse(targetId),
+          'gift_id': gift.id,
+          'request_id': requestId,
+        },
+      );
+      final data = Map<String, dynamic>.from(response['data'] as Map);
+      final remainingCoins = int.tryParse(data['remaining_coins'].toString());
+      final currentUser = _authController.currentUser.value;
+      if (remainingCoins != null && currentUser != null) {
+        await _authController.updateCachedUser(
+          currentUser.copyWith(coins: remainingCoins),
+        );
+      }
+      _pendingGiftRequestIds.remove(requestKey);
+      Get.snackbar(
+        'Gift sent',
+        '${gift.emoji} ${gift.name} sent to $targetName!',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      await _syncParty();
+    } catch (error) {
+      Get.snackbar(
+        'Unable to send gift',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingGift = false);
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _msgController.text.trim();
     if (text.isEmpty || text.length > 500) return;
@@ -796,6 +1301,21 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
     }
   }
 
+  Future<void> _sendTargetedEffect(String effect, String targetId) async {
+    try {
+      await _partyAction(
+        'send_effect',
+        payload: {'effect': effect, 'target_user_id': int.tryParse(targetId)},
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Unable to send effect',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   Future<void> _toggleRaisedHand() async {
     final raised = !_isHandRaised;
     try {
@@ -818,15 +1338,15 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
     );
   }
 
-  void _showMusicModal() {
-    Get.snackbar(
-      'Music is postponed',
-      'Party music will be added when a licensed shared audio source is ready.',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-
   Future<void> _toggleScreenShare() async {
+    if (!_canShareScreen) {
+      Get.snackbar(
+        'Host approval required',
+        'The host must allow screen sharing before this control is available.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     if (!isUserSeated) {
       Get.snackbar(
         'Take a speaker seat',
@@ -994,6 +1514,11 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                         shape: BoxShape.circle,
                       ),
                     ),
+                    onTap:
+                        participant['user_id'].toString() ==
+                            _authController.currentUser.value?.id.toString()
+                        ? null
+                        : () => _showParticipantActions(participant),
                   );
                 },
               ),
@@ -1202,6 +1727,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 itemBuilder: (context, index) {
                   final seat = _seats[index];
                   final isOccupied = seat != null;
+                  final isReservedHostSeat = index == 0 && !isHost;
                   return InkWell(
                     onTap: () => _handleSeatTap(index),
                     borderRadius: BorderRadius.circular(16),
@@ -1209,6 +1735,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                       children: [
                         Stack(
                           alignment: Alignment.center,
+                          clipBehavior: Clip.none,
                           children: [
                             isOccupied
                                 ? UserAvatarWithFrame(
@@ -1229,8 +1756,10 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                                         width: 1,
                                       ),
                                     ),
-                                    child: const Icon(
-                                      Icons.add,
+                                    child: Icon(
+                                      isReservedHostSeat
+                                          ? Icons.lock_outline
+                                          : Icons.add,
                                       color: Colors.white54,
                                       size: 22,
                                     ),
@@ -1266,11 +1795,24 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                                   size: 15,
                                 ),
                               ),
+                            if (isOccupied &&
+                                _seatEffects.containsKey(seat['id'].toString()))
+                              Positioned(
+                                top: -10,
+                                child: Text(
+                                  _seatEffects[seat['id'].toString()]!,
+                                  style: const TextStyle(fontSize: 28),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          isOccupied ? seat['name'] : 'Seat ${index + 1}',
+                          isOccupied
+                              ? seat['name']
+                              : (isReservedHostSeat
+                                    ? 'Host seat'
+                                    : 'Seat ${index + 1}'),
                           style: TextStyle(
                             color: isOccupied ? Colors.white : Colors.white38,
                             fontSize: 10,
@@ -1310,7 +1852,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 ),
               ),
 
-            // Quick actions are room-wide; music remains disabled until its source is licensed.
+            // Music playback stays hidden until a licensed shared audio source is available.
             Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               color: partyColors.last.withValues(alpha: 0.68),
@@ -1319,20 +1861,15 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildToolButton(
-                      Icons.music_note,
-                      'Music soon',
-                      Colors.pink,
-                      _showMusicModal,
-                    ),
-                    _buildToolButton(
-                      _isScreenSharing
-                          ? Icons.stop_screen_share
-                          : Icons.screen_share,
-                      'Screen Share',
-                      Colors.blue,
-                      _toggleScreenShare,
-                    ),
+                    if (isUserSeated && _canShareScreen)
+                      _buildToolButton(
+                        _isScreenSharing
+                            ? Icons.stop_screen_share
+                            : Icons.screen_share,
+                        'Screen Share',
+                        Colors.blue,
+                        _toggleScreenShare,
+                      ),
                     _buildToolButton(
                       Icons.celebration,
                       'Applause',
@@ -1388,6 +1925,45 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                           color: Colors.white70,
                           fontSize: 11,
                         ),
+                      ),
+                    );
+                  }
+                  if (msg['isGift'] == true) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.pinkAccent.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.pinkAccent.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          TweenAnimationBuilder<double>(
+                            key: ValueKey(msg['text']),
+                            tween: Tween(begin: 0.6, end: 1),
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.elasticOut,
+                            builder: (context, scale, child) =>
+                                Transform.scale(scale: scale, child: child),
+                            child: Text(
+                              msg['emoji']?.toString() ?? '🎁',
+                              style: const TextStyle(fontSize: 32),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              msg['text']?.toString() ?? 'A gift was sent!',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }

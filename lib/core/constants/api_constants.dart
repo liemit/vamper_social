@@ -43,6 +43,10 @@ class ApiConstants {
   static String get getConversations => '$baseUrl/get-conversations.php';
   static String get getMessages => '$baseUrl/get-messages.php';
   static String get sendMessage => '$baseUrl/send-message.php';
+  static String get getGifts => '$baseUrl/get-gifts.php';
+  static String get sendGift => '$baseUrl/send-gift.php';
+  static String get voiceMatchSession => '$baseUrl/voice-match-session.php';
+  static String get chatCall => '$baseUrl/chat-call.php';
 
   // Headers
   static const Map<String, String> headers = {
