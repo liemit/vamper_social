@@ -18,6 +18,36 @@ issues short-lived room tokens. Microphone publishing is limited to speaker
 seats; screen sharing is limited to the host or a seated participant explicitly
 approved by the host. A host or co-host can lock a participant's microphone.
 
+## Admin portal
+
+The PHP admin portal and API use the `VAMPER_DB_HOST`, `VAMPER_DB_NAME`,
+`VAMPER_DB_USER`, and `VAMPER_DB_PASSWORD` environment variables when present.
+The existing local defaults remain `localhost` / `vamper_social` / `root` /
+empty password. Set production credentials in the PHP-FPM/Apache environment,
+not in source control.
+
+On the first admin login, additive migrations create `admin_accounts`,
+`admin_audit_log`, and `vpc_ledger`, add report-review metadata and the
+`shop_items.is_active` flag, and preserve existing accounts and purchases. The
+sandbox checkout endpoint creates its own payment idempotency table on first
+use.
+Existing `users.role = 'admin'` accounts are initialized as `super_admin` so
+they retain access. The database account needs `CREATE` and `ALTER` privileges
+for this one-time initialization. No database reset or full SQL import is
+required. Existing sessions are invalidated by the admin-only session cookie.
+
+Admin sessions use password hashes only, CSRF tokens, role permissions, and
+audited write actions. User and post moderation is reversible; user deletion
+has been removed. VPC adjustments, shop purchases, gifts, and sandbox top-ups
+are recorded in the additive VPC ledger. Older coin activity is intentionally
+not backfilled because trustworthy before/after balances are unavailable.
+
+PayPal checkout currently remains a sandbox simulation, not real payment
+verification. Simulated top-ups are labeled `sandbox_mock`, excluded from
+revenue totals, and disabled if the stored payment mode is `live`. Do not enable
+live payments until a server-side PayPal order/capture verification flow is
+implemented.
+
 Party music playback is not implemented yet. The shop exposes profile frames
 and avatars only; legacy Party-frame records are hidden and cannot be purchased
 or equipped.

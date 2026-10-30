@@ -2,6 +2,7 @@
 require_once '../config/cors.php';
 require_once '../config/database.php';
 require_once __DIR__ . '/libs/ApiAuth.php';
+require_once __DIR__ . '/../libs/AdminTools.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -17,6 +18,8 @@ if (!$item_id) {
 }
 
 try {
+    ensureShopActiveColumn($db);
+    ensureVpcLedgerTable($db);
     $db->beginTransaction();
 
     // Lock the account balance so concurrent purchases cannot overspend.
@@ -43,7 +46,7 @@ try {
         exit();
     }
 
-    $iStmt = $db->prepare("SELECT price_coins, type FROM shop_items WHERE id = :iid LIMIT 1");
+    $iStmt = $db->prepare("SELECT price_coins, type, is_active FROM shop_items WHERE id = :iid LIMIT 1");
     $iStmt->execute([':iid' => $item_id]);
     $item = $iStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -57,6 +60,12 @@ try {
         $db->rollBack();
         http_response_code(400);
         echo json_encode(["success" => false, "message" => "Party frames are no longer available in the shop."]);
+        exit();
+    }
+    if (!(int)$item['is_active']) {
+        $db->rollBack();
+        http_response_code(404);
+        echo json_encode(["success" => false, "message" => "This item is no longer available."]);
         exit();
     }
     $price = (int)$item['price_coins'];
@@ -83,6 +92,16 @@ try {
             echo json_encode(["success" => false, "message" => "Insufficient VPC coins! Please recharge."]);
             exit();
         }
+        recordVpcLedger(
+            $db,
+            (int)$user_id,
+            -$price,
+            (int)$userCoins,
+            (int)$userCoins - $price,
+            'shop_purchase',
+            'Shop item purchase',
+            (string)$item_id
+        );
     }
 
     $buyStmt = $db->prepare("INSERT INTO user_items (user_id, item_id, purchased_at) VALUES (:uid, :iid, NOW())");

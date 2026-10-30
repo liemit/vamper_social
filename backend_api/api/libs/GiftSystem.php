@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../libs/AdminTools.php';
 
 function ensureGiftTables(PDO $db): void
 {
@@ -106,8 +107,9 @@ function sendGiftTransaction(
         throw new InvalidArgumentException('A valid gift request ID is required.');
     }
 
-    $db->beginTransaction();
     try {
+        ensureVpcLedgerTable($db);
+        $db->beginTransaction();
         $balanceQuery = $db->prepare('SELECT coins FROM users WHERE id = :id FOR UPDATE');
         $balanceQuery->execute([':id' => $senderId]);
         $balance = $balanceQuery->fetchColumn();
@@ -316,6 +318,16 @@ function sendGiftTransaction(
             ':price_coins' => $price,
         ]);
         $transactionId = (int)$db->lastInsertId();
+        recordVpcLedger(
+            $db,
+            $senderId,
+            -$price,
+            (int)$balance,
+            (int)$balance - $price,
+            'gift_sent',
+            'Gift sent: ' . $gift['name'],
+            (string)$transactionId
+        );
 
         $giftMessage = [
             'transaction_id' => $transactionId,

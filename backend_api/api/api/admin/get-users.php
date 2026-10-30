@@ -1,12 +1,14 @@
 <?php
 require_once '../../config/cors.php';
 require_once '../../config/database.php';
+require_once '../../../libs/AdminTools.php';
+require_once '../../libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
-// Verify Admin Secret or ID (Optional simple check for now)
-$admin_id = isset($_GET['admin_id']) ? $_GET['admin_id'] : null;
+$admin_id = authenticateApiUser($db);
+assertAdminApiPermission($db, (int)$admin_id, 'users');
 
 try {
     // 1. Fetch Summary Stats
@@ -21,7 +23,7 @@ try {
     $query = "SELECT id, full_name, email, role, gender, profile_photo, location, coins, is_active, created_at
               FROM users
               ORDER BY created_at DESC";
-    $stmt = $db->prepare($query);
+    $stmt = $db->prepare($query . ' LIMIT 200');
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -35,6 +37,7 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    error_log('Admin user list failed: ' . $e->getMessage());
+    echo json_encode(["success" => false, "message" => "Unable to load admin user data."]);
 }
 ?>

@@ -2,6 +2,7 @@
 require_once '../config/cors.php';
 require_once '../config/database.php';
 require_once __DIR__ . '/libs/ApiAuth.php';
+require_once __DIR__ . '/../libs/AdminTools.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -9,28 +10,31 @@ $db = $database->getConnection();
 $user_id = authenticateApiUser($db);
 
 try {
-    // Ensure tables exist
-    $db->exec("CREATE TABLE IF NOT EXISTS shop_items (
+    if (!adminTableExists($db, 'shop_items')) {
+        $db->exec("CREATE TABLE IF NOT EXISTS shop_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         type ENUM('avatar','profile_frame','party_frame') NOT NULL,
         image_url VARCHAR(255) NOT NULL,
         price_coins INT NOT NULL DEFAULT 100,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    }
 
-    $db->exec("CREATE TABLE IF NOT EXISTS user_items (
+    if (!adminTableExists($db, 'user_items')) {
+        $db->exec("CREATE TABLE IF NOT EXISTS user_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         item_id INT NOT NULL,
         purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY unique_user_item (user_id, item_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    }
+    ensureShopActiveColumn($db);
 
     // Ensure the selected cosmetics can be persisted for each user.
     foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
-        $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE " . $db->quote($column));
-        if ($columnStmt->rowCount() === 0) {
+        if (!adminColumnExists($db, 'users', $column)) {
             $db->exec("ALTER TABLE users ADD COLUMN `$column` INT NULL");
         }
     }
@@ -143,7 +147,7 @@ try {
     $stmt = $db->query(
         "SELECT id, name, type, image_url, price_coins
          FROM shop_items
-         WHERE type IN ('profile_frame', 'avatar')
+         WHERE type IN ('profile_frame', 'avatar') AND is_active = 1
          ORDER BY price_coins ASC"
     );
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
