@@ -19,6 +19,7 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _pollTimer;
+  Timer? _searchTimeoutTimer;
   bool _isSearching = true;
   bool _isPolling = false;
   bool _hasMatched = false;
@@ -39,6 +40,11 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
 
   Future<void> _startSearch() async {
     if (_isPolling || _hasMatched) return;
+    _searchTimeoutTimer?.cancel();
+    _searchTimeoutTimer = Timer(
+      const Duration(seconds: 15),
+      _handleSearchTimeout,
+    );
     _isPolling = true;
     try {
       final preference = Get.find<DiscoveryController>().genderPreference.value;
@@ -63,6 +69,8 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
       }
     } catch (error) {
       if (mounted) {
+        _searchTimeoutTimer?.cancel();
+        _controller.stop();
         setState(() {
           _isSearching = false;
           _errorMessage = error.toString().replaceFirst('Bad state: ', '');
@@ -116,12 +124,36 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
     final session = Map<String, dynamic>.from(response['data'] as Map);
     _hasMatched = true;
     _pollTimer?.cancel();
+    _searchTimeoutTimer?.cancel();
+    _controller.stop();
     if (mounted) {
       setState(() => _statusText = 'Voice Match found! Connecting...');
     }
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     Get.off(() => VoiceMatchCallScreen(session: session));
+  }
+
+  void _handleSearchTimeout() {
+    if (!mounted || _hasMatched || !_isSearching) return;
+    if (_isPolling) {
+      _searchTimeoutTimer = Timer(
+        const Duration(milliseconds: 500),
+        _handleSearchTimeout,
+      );
+      return;
+    }
+
+    _pollTimer?.cancel();
+    _searchTimeoutTimer?.cancel();
+    _controller.stop();
+    setState(() {
+      _isSearching = false;
+      _statusText = 'No voice partner found';
+      _errorMessage =
+          'No compatible users are available right now. You can try Voice Match again from Matches.';
+    });
+    unawaited(_leaveQueue());
   }
 
   Future<void> _leaveQueue() async {
@@ -137,6 +169,7 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
 
   void _cancelSearch() {
     _pollTimer?.cancel();
+    _searchTimeoutTimer?.cancel();
     unawaited(_leaveQueue());
     Get.back();
   }
@@ -144,6 +177,7 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _searchTimeoutTimer?.cancel();
     if (!_hasMatched) unawaited(_leaveQueue());
     _controller.dispose();
     super.dispose();
@@ -217,7 +251,7 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                if (!_isSearching && _errorMessage != null)
+                if (!_isSearching)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
@@ -227,15 +261,8 @@ class _VoiceMatchWaitingScreenState extends State<VoiceMatchWaitingScreen>
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _isSearching = true;
-                        _errorMessage = null;
-                        _statusText = 'Finding voice partner...';
-                      });
-                      unawaited(_startSearch());
-                    },
-                    child: const Text('Try again'),
+                    onPressed: _cancelSearch,
+                    child: const Text('Back to Matches'),
                   )
                 else
                   TextButton(

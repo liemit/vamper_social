@@ -38,6 +38,7 @@ void main() {
         'price_coins': 10,
       }),
       'is_read': 0,
+      'already_processed': 1,
       'created_at': '2026-10-30 01:00:00',
     });
 
@@ -45,5 +46,6 @@ void main() {
     expect(message.gift?['transaction_id'], 41);
     expect(message.gift?['emoji'], '🌹');
     expect(message.gift?['price_coins'], 10);
+    expect(message.alreadyProcessed, isTrue);
   });
 }

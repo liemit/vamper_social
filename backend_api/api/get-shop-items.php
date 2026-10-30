@@ -35,7 +35,7 @@ try {
         }
     }
 
-    // Auto-seed shop_items if empty
+    // Install the original catalog for fresh databases.
     $countStmt = $db->query("SELECT COUNT(*) FROM shop_items");
     if ($countStmt->fetchColumn() == 0) {
         $seedQuery = "INSERT INTO shop_items (name, type, image_url, price_coins) VALUES
@@ -57,6 +57,86 @@ try {
         ('Avatar Chúa Tể Vampire Vàng', 'avatar', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200', 1000),
         ('Avatar Thiên Thần Ánh Sáng', 'avatar', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200', 1500);";
         $db->exec($seedQuery);
+    }
+
+    // Add new cosmetics to existing installations without replacing user-owned items.
+    $newItems = [
+        ['profile_frame', 'Khung Hoa Hồng Pha Lê', 'frame_rose', 180],
+        ['profile_frame', 'Khung Băng Giá Bắc Cực', 'frame_ice', 220],
+        ['profile_frame', 'Khung Sakura Mộng Mơ', 'frame_sakura', 280],
+        ['profile_frame', 'Khung Đại Dương Sâu Thẳm', 'frame_ocean', 350],
+        ['profile_frame', 'Khung Hoàng Hôn Rực Rỡ', 'frame_sunset', 420],
+        ['profile_frame', 'Khung Khu Rừng Cổ Tích', 'frame_mint', 480],
+        ['profile_frame', 'Khung Obsidian Huyền Bí', 'frame_obsidian', 650],
+        ['profile_frame', 'Khung Hologram Ánh Ngọc', 'frame_holo', 800],
+        ['profile_frame', 'Khung Cầu Vồng Vũ Trụ', 'frame_rainbow', 950],
+        ['profile_frame', 'Khung Nhật Thực Hoàng Kim', 'frame_solar', 1200],
+        [
+            'avatar',
+            'Avatar Nhà Du Hành Mộng Mơ',
+            'https://api.dicebear.com/9.x/adventurer/png?seed=vamper-dreamer&backgroundColor=b6e3f4,c0aede,d1d4f9',
+            120,
+        ],
+        [
+            'avatar',
+            'Avatar Nàng Thơ Dịu Dàng',
+            'https://api.dicebear.com/9.x/lorelei/png?seed=vamper-lorelei&backgroundColor=ffd5dc,ffdfbf,c0aede',
+            180,
+        ],
+        [
+            'avatar',
+            'Avatar Chú Mèo Tinh Nghịch',
+            'https://api.dicebear.com/9.x/fun-emoji/png?seed=vamper-cat&backgroundColor=ffdfbf,b6e3f4,c0aede',
+            220,
+        ],
+        [
+            'avatar',
+            'Avatar Chiến Binh Neon',
+            'https://api.dicebear.com/9.x/bottts/png?seed=vamper-neon-warrior&backgroundColor=c0aede,d1d4f9,b6e3f4',
+            300,
+        ],
+        [
+            'avatar',
+            'Avatar Tiểu Tiên Rừng Xanh',
+            'https://api.dicebear.com/9.x/adventurer/png?seed=vamper-forest-fairy&backgroundColor=b6e3f4,c0aede,d1d4f9',
+            380,
+        ],
+        [
+            'avatar',
+            'Avatar Hoàng Tử Bóng Đêm',
+            'https://api.dicebear.com/9.x/notionists/png?seed=vamper-night-prince&backgroundColor=1b1b3a,693668,94618e',
+            500,
+        ],
+        [
+            'avatar',
+            'Avatar Nữ Hoàng Ánh Trăng',
+            'https://api.dicebear.com/9.x/lorelei/png?seed=vamper-moon-queen&backgroundColor=1b1b3a,693668,94618e',
+            700,
+        ],
+        [
+            'avatar',
+            'Avatar Rồng Con Huyền Thoại',
+            'https://api.dicebear.com/9.x/bottts/png?seed=vamper-legendary-dragon&backgroundColor=ffdfbf,ffd5dc,c0aede',
+            900,
+        ],
+    ];
+    $insertItem = $db->prepare(
+        'INSERT INTO shop_items (name, type, image_url, price_coins)
+         SELECT :name, :type, :image_url, :price
+         WHERE NOT EXISTS (
+             SELECT 1 FROM shop_items
+             WHERE type = :existing_type AND image_url = :existing_image
+         )'
+    );
+    foreach ($newItems as [$type, $name, $imageUrl, $price]) {
+        $insertItem->execute([
+            ':name' => $name,
+            ':type' => $type,
+            ':image_url' => $imageUrl,
+            ':price' => $price,
+            ':existing_type' => $type,
+            ':existing_image' => $imageUrl,
+        ]);
     }
 
     // Fetch shop items

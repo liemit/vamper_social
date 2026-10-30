@@ -11,6 +11,7 @@ class MessageModel {
   final String? replyTo;
   final String? reaction;
   final Map<String, dynamic>? gift;
+  final bool alreadyProcessed;
   final bool isRead;
   final DateTime createdAt;
 
@@ -25,6 +26,7 @@ class MessageModel {
     this.replyTo,
     this.reaction,
     this.gift,
+    this.alreadyProcessed = false,
     required this.isRead,
     required this.createdAt,
   });
@@ -52,6 +54,8 @@ class MessageModel {
       replyTo: json['reply_to'],
       reaction: json['reaction'],
       gift: gift,
+      alreadyProcessed:
+          json['already_processed'] == true || json['already_processed'] == 1,
       isRead: json['is_read'] == 1 || json['is_read'] == true,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );

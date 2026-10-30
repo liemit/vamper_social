@@ -24,28 +24,35 @@ class ChatController extends GetxController {
   Timer? _notificationTimer;
   int? _activeConversationId;
   final Map<String, String> _pendingGiftRequestIds = {};
+  final Set<int> _announcedGiftMessageIds = {};
   bool _isSendingGift = false;
+  bool _hasMessageBaseline = false;
+  void Function(MessageModel gift)? onNewReceivedGift;
 
   bool get hasUnreadMessages => conversations.any((c) => c.unreadCount > 0);
 
   Future<List<GiftModel>> fetchGifts() async {
     final response = await _apiService.get(ApiConstants.getGifts);
     if (response.data['success'] != true) {
-      throw StateError(response.data['message']?.toString() ?? 'Unable to load gifts.');
+      throw StateError(
+        response.data['message']?.toString() ?? 'Unable to load gifts.',
+      );
     }
     final data = response.data['data'] as List? ?? const [];
     return data
-        .map((gift) => GiftModel.fromJson(Map<String, dynamic>.from(gift as Map)))
+        .map(
+          (gift) => GiftModel.fromJson(Map<String, dynamic>.from(gift as Map)),
+        )
         .toList();
   }
 
-  Future<bool> sendGift({
+  Future<MessageModel?> sendGift({
     required int conversationId,
     required String partnerId,
     required GiftModel gift,
   }) async {
     final userId = _authController.currentUser.value?.id;
-    if (userId == null || _isSendingGift) return false;
+    if (userId == null || _isSendingGift) return null;
 
     final requestKey = '$conversationId:$partnerId:${gift.id}';
     final requestId = _pendingGiftRequestIds.putIfAbsent(
@@ -73,9 +80,10 @@ class ChatController extends GetxController {
       _pendingGiftRequestIds.remove(requestKey);
 
       final data = Map<String, dynamic>.from(response.data['data'] as Map);
-      messages.add(
-        MessageModel.fromJson(Map<String, dynamic>.from(data)),
+      final sentMessage = MessageModel.fromJson(
+        Map<String, dynamic>.from(data),
       );
+      messages.add(sentMessage);
       final remainingCoins = int.tryParse(data['remaining_coins'].toString());
       final currentUser = _authController.currentUser.value;
       if (remainingCoins != null && currentUser != null) {
@@ -84,14 +92,14 @@ class ChatController extends GetxController {
         );
       }
       fetchConversations();
-      return true;
+      return sentMessage;
     } catch (error) {
       Get.snackbar(
         'Unable to send gift',
         error.toString().replaceFirst('Bad state: ', ''),
         snackPosition: SnackPosition.BOTTOM,
       );
-      return false;
+      return null;
     } finally {
       _isSendingGift = false;
       isSending.value = false;
@@ -165,7 +173,9 @@ class ChatController extends GetxController {
 
       if (response.data['success'] == true) {
         final List data = response.data['data'] ?? [];
-        conversations.value = data.map((c) => ConversationModel.fromJson(c)).toList();
+        conversations.value = data
+            .map((c) => ConversationModel.fromJson(c))
+            .toList();
       }
     } catch (e) {
       print('Error fetching conversations: $e');
@@ -174,7 +184,11 @@ class ChatController extends GetxController {
     }
   }
 
-  Future<void> fetchMessages(int conversationId, {String? partnerId, bool isSilent = false}) async {
+  Future<void> fetchMessages(
+    int conversationId, {
+    String? partnerId,
+    bool isSilent = false,
+  }) async {
     final userId = _authController.currentUser.value?.id;
     if (userId == null) return;
 
@@ -196,11 +210,28 @@ class ChatController extends GetxController {
 
       if (response.data['success'] == true) {
         if (response.data['conversation_id'] != null) {
-          final realCid = int.parse(response.data['conversation_id'].toString());
+          final realCid = int.parse(
+            response.data['conversation_id'].toString(),
+          );
           _activeConversationId = realCid;
         }
         final List data = response.data['data'] ?? [];
-        messages.value = data.map((m) => MessageModel.fromJson(m)).toList();
+        final fetchedMessages = data
+            .map((message) => MessageModel.fromJson(message))
+            .toList();
+        if (isSilent && _hasMessageBaseline) {
+          final knownMessageIds = messages.map((message) => message.id).toSet();
+          for (final message in fetchedMessages) {
+            if (message.messageType == 'gift' &&
+                message.receiverId == userId.toString() &&
+                !knownMessageIds.contains(message.id) &&
+                _announcedGiftMessageIds.add(message.id)) {
+              onNewReceivedGift?.call(message);
+            }
+          }
+        }
+        _hasMessageBaseline = true;
+        messages.value = fetchedMessages;
       }
     } catch (e) {
       print('Error fetching messages: $e');
@@ -210,11 +241,22 @@ class ChatController extends GetxController {
     }
   }
 
-  void startPollingMessages(int conversationId, {String? partnerId}) {
+  void startPollingMessages(
+    int conversationId, {
+    String? partnerId,
+    void Function(MessageModel gift)? onNewReceivedGift,
+  }) {
     _stopPolling();
     _activeConversationId = conversationId > 0 ? conversationId : null;
+    _hasMessageBaseline = false;
+    _announcedGiftMessageIds.clear();
+    this.onNewReceivedGift = onNewReceivedGift;
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      fetchMessages(_activeConversationId ?? 0, partnerId: partnerId, isSilent: true);
+      fetchMessages(
+        _activeConversationId ?? 0,
+        partnerId: partnerId,
+        isSilent: true,
+      );
     });
   }
 
@@ -252,11 +294,19 @@ class ChatController extends GetxController {
         fetchConversations(); // refresh inbox snippet
         return true;
       }
-      Get.snackbar('Error', response.data['message'] ?? 'Failed to send message', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        response.data['message'] ?? 'Failed to send message',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return false;
     } catch (e) {
       print('Error sending message: $e');
-      Get.snackbar('Error', 'Network or server error while sending message', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Network or server error while sending message',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return false;
     } finally {
       isSending.value = false;
@@ -282,7 +332,10 @@ class ChatController extends GetxController {
         'receiver_id': partnerId,
         'content': '📷 [Photo]',
         'reply_to': ?replyTo,
-        'image': dio.MultipartFile.fromBytes(bytes.toList(), filename: imageFile.name),
+        'image': dio.MultipartFile.fromBytes(
+          bytes.toList(),
+          filename: imageFile.name,
+        ),
       });
 
       final response = await _apiService.post(
@@ -319,7 +372,11 @@ class ChatController extends GetxController {
       final bytes = await videoFile.readAsBytes();
 
       if (bytes.length > 15 * 1024 * 1024) {
-        Get.snackbar('Video too large', 'Max video size is 15MB', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          'Video too large',
+          'Max video size is 15MB',
+          snackPosition: SnackPosition.BOTTOM,
+        );
         return false;
       }
 
@@ -329,7 +386,10 @@ class ChatController extends GetxController {
         'receiver_id': partnerId,
         'content': '🎬 [Video]',
         'reply_to': ?replyTo,
-        'video': dio.MultipartFile.fromBytes(bytes.toList(), filename: videoFile.name),
+        'video': dio.MultipartFile.fromBytes(
+          bytes.toList(),
+          filename: videoFile.name,
+        ),
       });
 
       final response = await _apiService.post(
@@ -359,10 +419,7 @@ class ChatController extends GetxController {
     try {
       final response = await _apiService.post(
         '${ApiConstants.baseUrl}/recall-message.php',
-        data: {
-          'message_id': messageId,
-          'user_id': userId,
-        },
+        data: {'message_id': messageId, 'user_id': userId},
       );
 
       if (response.data['success'] == true) {
@@ -420,6 +477,8 @@ class ChatController extends GetxController {
             mediaUrl: old.mediaUrl,
             replyTo: old.replyTo,
             reaction: reaction,
+            gift: old.gift,
+            alreadyProcessed: old.alreadyProcessed,
             isRead: old.isRead,
             createdAt: old.createdAt,
           );
@@ -432,5 +491,4 @@ class ChatController extends GetxController {
       return false;
     }
   }
-
 }

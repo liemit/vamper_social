@@ -19,6 +19,7 @@ import '../chat/conversations_screen.dart';
 import '../../controllers/chat_controller.dart';
 import 'party_tab.dart';
 import '../wallet/store_screen.dart';
+import '../wallet/gift_collection_screen.dart';
 import '../../widgets/user_avatar_with_frame.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -706,6 +707,11 @@ class ProfileTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
+            _ProfileMenuItem(
+              icon: Icons.card_giftcard,
+              title: 'Gift Collection 🎁',
+              onTap: () => Get.to(() => const GiftCollectionScreen()),
+            ),
             _ProfileMenuItem(
               icon: Icons.storefront,
               title: 'Item Store 🛍️',

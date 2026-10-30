@@ -22,6 +22,15 @@ Party music playback is not implemented yet. The shop exposes profile frames
 and avatars only; legacy Party-frame records are hidden and cannot be purchased
 or equipped.
 
+## Profile cosmetics shop
+
+Opening the shop through `get-shop-items.php` installs any missing profile
+frames and avatars in `shop_items`, including on an existing database. This
+catalog update is additive and does not replace existing shop rows or
+`user_items` ownership; no database reset or full SQL import is needed. Avatar
+artwork is currently served by DiceBear, so those images require internet
+access to that service.
+
 Run the Party table additions in `../vamper_social.sql` when applying the schema;
 the Party APIs also create the new tables for existing installations. Party
 passwords are hashed on creation, and the password is never returned by the
@@ -43,6 +52,16 @@ loads prices from the catalog, locks the sender's balance, and records the
 coin debit and delivery atomically. Request IDs prevent a retried request from
 charging twice. Gift value is not credited to the recipient in this initial
 version.
+
+The authenticated `get-my-gifts.php` endpoint builds the recipient's collection
+and recent-gift history directly from `gift_transactions`, the authoritative
+gift ledger. No additional inventory table or SQL migration is required;
+existing gift transactions are included automatically. Received gifts are
+collectibles and cannot be redeemed or transferred for VPC coins.
+
+In chat, the sender sees a gift celebration immediately after the gift API
+confirms delivery. The recipient sees the matching celebration when message
+polling detects the new gift; visual tiers scale with catalog coin value.
 
 ## Voice Match calls
 

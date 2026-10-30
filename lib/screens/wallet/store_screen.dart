@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../widgets/profile_frame_style.dart';
 import 'coin_shop_screen.dart';
 
 class StoreScreen extends StatefulWidget {
@@ -575,60 +576,15 @@ class _StoreScreenState extends State<StoreScreen> {
         ),
       );
     } else if (type == 'profile_frame') {
-      List<Color> gradientColors;
-      Widget? badgeIcon;
-
-      switch (imageUrl) {
-        case 'frame_blue':
-          gradientColors = [Colors.blue.shade400, Colors.cyanAccent];
-          break;
-        case 'frame_emerald':
-          gradientColors = [Colors.teal, Colors.greenAccent];
-          break;
-        case 'frame_neon':
-          gradientColors = [Colors.purple, Colors.pink, Colors.cyan];
-          break;
-        case 'frame_gold':
-          gradientColors = [
-            Colors.amber.shade700,
-            Colors.yellow,
-            Colors.amber.shade300,
-          ];
-          badgeIcon = const Positioned(
-            top: -4,
-            child: Text('👑', style: TextStyle(fontSize: 14)),
-          );
-          break;
-        case 'frame_flame':
-          gradientColors = [Colors.deepOrange, Colors.orange, Colors.red];
-          badgeIcon = const Positioned(
-            bottom: -2,
-            child: Text('🔥', style: TextStyle(fontSize: 14)),
-          );
-          break;
-        case 'frame_galaxy':
-          gradientColors = [Colors.indigo, Colors.purple, Colors.pinkAccent];
-          badgeIcon = const Positioned(
-            top: -4,
-            child: Text('✨', style: TextStyle(fontSize: 14)),
-          );
-          break;
-        case 'frame_dragon':
-          gradientColors = [
-            Colors.red.shade900,
-            Colors.purple.shade800,
-            Colors.black,
-          ];
-          badgeIcon = const Positioned(
-            bottom: -2,
-            child: Text('🐉', style: TextStyle(fontSize: 14)),
-          );
-          break;
-        case 'frame_white':
-        default:
-          gradientColors = [Colors.grey.shade400, Colors.grey.shade200];
-          break;
-      }
+      final style = ProfileFrameStyle.fromCode(imageUrl);
+      final gradientColors = style.colors;
+      final badgeIcon = style.badge == null
+          ? null
+          : Positioned(
+              top: style.badgeAtTop ? -4 : null,
+              bottom: style.badgeAtTop ? null : -2,
+              child: Text(style.badge!, style: const TextStyle(fontSize: 14)),
+            );
 
       return SizedBox(
         width: 76,

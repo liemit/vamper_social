@@ -45,6 +45,7 @@ class ApiConstants {
   static String get sendMessage => '$baseUrl/send-message.php';
   static String get getGifts => '$baseUrl/get-gifts.php';
   static String get sendGift => '$baseUrl/send-gift.php';
+  static String get myGiftCollection => '$baseUrl/get-my-gifts.php';
   static String get voiceMatchSession => '$baseUrl/voice-match-session.php';
   static String get chatCall => '$baseUrl/chat-call.php';
 

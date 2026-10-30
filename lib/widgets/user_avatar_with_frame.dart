@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../app/theme/app_colors.dart';
 import '../controllers/auth_controller.dart';
+import 'profile_frame_style.dart';
 
 class UserAvatarWithFrame extends StatelessWidget {
   final String? photoUrl;
@@ -50,60 +51,15 @@ class UserAvatarWithFrame extends StatelessWidget {
       );
     }
 
-    List<Color> gradientColors;
-    Widget? badgeIcon;
-
-    switch (code) {
-      case 'frame_blue':
-        gradientColors = [Colors.blue.shade400, Colors.cyanAccent];
-        break;
-      case 'frame_emerald':
-        gradientColors = [Colors.teal, Colors.greenAccent];
-        break;
-      case 'frame_neon':
-        gradientColors = [Colors.purple, Colors.pink, Colors.cyan];
-        break;
-      case 'frame_gold':
-        gradientColors = [
-          Colors.amber.shade700,
-          Colors.yellow,
-          Colors.amber.shade300,
-        ];
-        badgeIcon = Positioned(
-          top: -size * 0.05,
-          child: Text('👑', style: TextStyle(fontSize: size * 0.22)),
-        );
-        break;
-      case 'frame_flame':
-        gradientColors = [Colors.deepOrange, Colors.orange, Colors.red];
-        badgeIcon = Positioned(
-          bottom: -size * 0.05,
-          child: Text('🔥', style: TextStyle(fontSize: size * 0.22)),
-        );
-        break;
-      case 'frame_galaxy':
-        gradientColors = [Colors.indigo, Colors.purple, Colors.pinkAccent];
-        badgeIcon = Positioned(
-          top: -size * 0.05,
-          child: Text('✨', style: TextStyle(fontSize: size * 0.22)),
-        );
-        break;
-      case 'frame_dragon':
-        gradientColors = [
-          Colors.red.shade900,
-          Colors.purple.shade800,
-          Colors.black,
-        ];
-        badgeIcon = Positioned(
-          bottom: -size * 0.05,
-          child: Text('🐉', style: TextStyle(fontSize: size * 0.22)),
-        );
-        break;
-      case 'frame_white':
-      default:
-        gradientColors = [Colors.grey.shade400, Colors.grey.shade200];
-        break;
-    }
+    final style = ProfileFrameStyle.fromCode(code);
+    final gradientColors = style.colors;
+    final badgeIcon = style.badge == null
+        ? null
+        : Positioned(
+            top: style.badgeAtTop ? -size * 0.05 : null,
+            bottom: style.badgeAtTop ? null : -size * 0.05,
+            child: Text(style.badge!, style: TextStyle(fontSize: size * 0.22)),
+          );
 
     final frameThickness = size * 0.06;
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +12,7 @@ import '../../core/constants/api_constants.dart';
 import '../../models/conversation_model.dart';
 import '../../models/gift_model.dart';
 import '../../models/message_model.dart';
+import '../../widgets/gift_celebration_overlay.dart';
 import '../matches/chat_call_screen.dart';
 import '../profile/profile_preview_screen.dart';
 import '../wallet/coin_shop_screen.dart';
@@ -35,6 +37,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _incomingCallTimer;
   bool _isCheckingIncomingCall = false;
   bool _isOpeningIncomingCall = false;
+  final Queue<MessageModel> _giftEffectQueue = Queue<MessageModel>();
+  MessageModel? _activeGiftEffect;
+  Timer? _giftEffectTimer;
 
   @override
   void initState() {
@@ -47,6 +52,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatController.startPollingMessages(
       widget.conversation.conversationId,
       partnerId: widget.conversation.partnerId,
+      onNewReceivedGift: _enqueueGiftEffect,
     );
     _incomingCallTimer = Timer.periodic(
       const Duration(seconds: 3),
@@ -109,6 +115,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _incomingCallTimer?.cancel();
+    _giftEffectTimer?.cancel();
+    _chatController.onNewReceivedGift = null;
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -549,12 +557,55 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (confirmed != true) return;
 
-    final success = await _chatController.sendGift(
+    final sentGift = await _chatController.sendGift(
       conversationId: widget.conversation.conversationId,
       partnerId: widget.conversation.partnerId,
       gift: gift,
     );
-    if (success) _scrollToBottom();
+    if (sentGift != null) {
+      _enqueueGiftEffect(sentGift);
+      _scrollToBottom();
+    }
+  }
+
+  void _enqueueGiftEffect(MessageModel message) {
+    if (message.messageType != 'gift' ||
+        message.gift == null ||
+        message.alreadyProcessed ||
+        !mounted) {
+      return;
+    }
+    if (_activeGiftEffect != null) {
+      _giftEffectQueue.addLast(message);
+      return;
+    }
+    _showGiftEffect(message);
+  }
+
+  void _showGiftEffect(MessageModel message) {
+    if (!mounted) return;
+    setState(() => _activeGiftEffect = message);
+    final price =
+        int.tryParse(message.gift?['price_coins']?.toString() ?? '') ?? 0;
+    final duration = price >= 500
+        ? const Duration(milliseconds: 4200)
+        : price >= 100
+        ? const Duration(milliseconds: 3400)
+        : const Duration(milliseconds: 2600);
+    _giftEffectTimer?.cancel();
+    _giftEffectTimer = Timer(duration, _dismissGiftEffect);
+  }
+
+  void _dismissGiftEffect() {
+    if (!mounted) return;
+    setState(() => _activeGiftEffect = null);
+    if (_giftEffectQueue.isNotEmpty) {
+      final nextGift = _giftEffectQueue.removeFirst();
+      _giftEffectTimer = Timer(
+        const Duration(milliseconds: 180),
+        () => _showGiftEffect(nextGift),
+      );
+    }
   }
 
   void _showMessageOptions(MessageModel msg, bool isMe) {
@@ -728,207 +779,235 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Messages List
-          Expanded(
-            child: Obx(() {
-              if (_chatController.isLoadingMessages.value &&
-                  _chatController.messages.isEmpty) {
-                return const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                );
-              }
+          Column(
+            children: [
+              // Messages List
+              Expanded(
+                child: Obx(() {
+                  if (_chatController.isLoadingMessages.value &&
+                      _chatController.messages.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    );
+                  }
 
-              if (_chatController.messages.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  if (_chatController.messages.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              gradient: photoUrl == null
+                                  ? AppColors.primaryGradient
+                                  : null,
+                              shape: BoxShape.circle,
+                            ),
+                            child: ClipOval(
+                              child: photoUrl != null
+                                  ? Image.network(
+                                      photoUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                decoration: const BoxDecoration(
+                                                  gradient:
+                                                      AppColors.primaryGradient,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.person,
+                                                  size: 38,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                    )
+                                  : const Icon(
+                                      Icons.person,
+                                      size: 38,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'You matched with ${widget.conversation.partnerName}! 🎉',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Say hi or send a photo to start the conversation.',
+                            style: TextStyle(
+                              color: AppColors.textLight,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _chatController.messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _chatController.messages[index];
+                      final isMe =
+                          msg.senderId ==
+                          _authController.currentUser.value?.id.toString();
+                      return GestureDetector(
+                        onLongPress: () => _showMessageOptions(msg, isMe),
+                        child: _buildMessageBubble(msg, isMe),
+                      );
+                    },
+                  );
+                }),
+              ),
+
+              // Quote Reply Preview Banner
+              if (_replyingTo != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  color: Colors.grey.shade200,
+                  child: Row(
                     children: [
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          gradient: photoUrl == null
-                              ? AppColors.primaryGradient
-                              : null,
-                          shape: BoxShape.circle,
-                        ),
-                        child: ClipOval(
-                          child: photoUrl != null
-                              ? Image.network(
-                                  photoUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                        decoration: const BoxDecoration(
-                                          gradient: AppColors.primaryGradient,
-                                        ),
-                                        child: const Icon(
-                                          Icons.person,
-                                          size: 38,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  size: 38,
-                                  color: Colors.white,
-                                ),
+                      const Icon(
+                        Icons.reply,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Replying to: ${_replyingTo!.content}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'You matched with ${widget.conversation.partnerName}! 🎉',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Say hi or send a photo to start the conversation.',
-                        style: TextStyle(
+                      IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          size: 18,
                           color: AppColors.textLight,
-                          fontSize: 12,
                         ),
+                        onPressed: () => setState(() => _replyingTo = null),
                       ),
                     ],
                   ),
-                );
-              }
+                ),
 
-              return ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: _chatController.messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _chatController.messages[index];
-                  final isMe =
-                      msg.senderId ==
-                      _authController.currentUser.value?.id.toString();
-                  return GestureDetector(
-                    onLongPress: () => _showMessageOptions(msg, isMe),
-                    child: _buildMessageBubble(msg, isMe),
-                  );
-                },
-              );
-            }),
-          ),
-
-          // Quote Reply Preview Banner
-          if (_replyingTo != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.grey.shade200,
-              child: Row(
-                children: [
-                  const Icon(Icons.reply, color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Replying to: ${_replyingTo!.content}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+              // Input Bar
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                color: Colors.white,
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add_photo_alternate_rounded,
+                          color: AppColors.primary,
+                          size: 26,
+                        ),
+                        onPressed: _showMediaPickerModal,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      size: 18,
-                      color: AppColors.textLight,
-                    ),
-                    onPressed: () => setState(() => _replyingTo = null),
-                  ),
-                ],
-              ),
-            ),
-
-          // Input Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: Colors.white,
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_photo_alternate_rounded,
-                      color: AppColors.primary,
-                      size: 26,
-                    ),
-                    onPressed: _showMediaPickerModal,
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.sentiment_satisfied_alt_rounded,
-                      color: Colors.amber,
-                      size: 26,
-                    ),
-                    onPressed: _showEmojiPickerModal,
-                  ),
-                  IconButton(
-                    tooltip: 'Send a gift',
-                    icon: const Icon(
-                      Icons.card_giftcard_rounded,
-                      color: Colors.pinkAccent,
-                      size: 25,
-                    ),
-                    onPressed: _showGiftPicker,
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _handleSendText(),
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        hintStyle: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textLight,
+                      IconButton(
+                        icon: const Icon(
+                          Icons.sentiment_satisfied_alt_rounded,
+                          color: Colors.amber,
+                          size: 26,
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFFF0F2F5),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
+                        onPressed: _showEmojiPickerModal,
+                      ),
+                      IconButton(
+                        tooltip: 'Send a gift',
+                        icon: const Icon(
+                          Icons.card_giftcard_rounded,
+                          color: Colors.pinkAccent,
+                          size: 25,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                        onPressed: _showGiftPicker,
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _textController,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _handleSendText(),
+                          decoration: InputDecoration(
+                            hintText: 'Type a message...',
+                            hintStyle: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textLight,
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF0F2F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Obx(() {
+                        return _chatController.isSending.value
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(
+                                  Icons.send_rounded,
+                                  color: AppColors.primary,
+                                  size: 28,
+                                ),
+                                onPressed: _handleSendText,
+                              );
+                      }),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Obx(() {
-                    return _chatController.isSending.value
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primary,
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.send_rounded,
-                              color: AppColors.primary,
-                              size: 28,
-                            ),
-                            onPressed: _handleSendText,
-                          );
-                  }),
-                ],
+                ),
+              ),
+            ],
+          ),
+          if (_activeGiftEffect?.gift != null)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _dismissGiftEffect,
+                child: GiftCelebrationOverlay(
+                  key: ValueKey(_activeGiftEffect!.id),
+                  gift: _activeGiftEffect!.gift!,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

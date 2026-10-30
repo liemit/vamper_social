@@ -1533,6 +1533,12 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
   Widget build(BuildContext context) {
     final partyColors = _partyBackgroundColors;
     final screenTrack = _sharedScreenTrack;
+    final isCompactLayout = MediaQuery.of(context).size.height < 800;
+    final double screenPreviewHeight =
+        (MediaQuery.of(context).size.height * 0.2)
+            .clamp(110.0, 190.0)
+            .toDouble();
+    final seatAvatarSize = isCompactLayout ? 44.0 : 50.0;
 
     return Scaffold(
       backgroundColor: partyColors.first,
@@ -1691,7 +1697,7 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
             if (screenTrack != null)
               Container(
                 width: double.infinity,
-                height: 190,
+                height: screenPreviewHeight,
                 color: Colors.black,
                 child: VideoTrackRenderer(
                   screenTrack,
@@ -1712,17 +1718,20 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
 
             // 10-SEAT GRID LAYOUT (2 rows of 5 seats)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: isCompactLayout ? 8 : 16,
+              ),
               color: partyColors.first.withValues(alpha: 0.72),
               child: GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: 10,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 5,
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 10,
-                  childAspectRatio: 0.75,
+                  childAspectRatio: isCompactLayout ? 0.85 : 0.75,
                 ),
                 itemBuilder: (context, index) {
                   final seat = _seats[index];
@@ -1741,11 +1750,11 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                                 ? UserAvatarWithFrame(
                                     photoUrl: seat['photo'],
                                     frameCode: seat['frameCode']?.toString(),
-                                    size: 50,
+                                    size: seatAvatarSize,
                                   )
                                 : Container(
-                                    width: 50,
-                                    height: 50,
+                                    width: seatAvatarSize,
+                                    height: seatAvatarSize,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: Colors.white.withValues(
