@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/api_constants.dart';
 
@@ -18,7 +18,6 @@ class ApiService {
       ),
     );
 
-    // Add interceptors for logging & ngrok header enforcement
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -29,7 +28,7 @@ class ApiService {
           final preferences = await SharedPreferences.getInstance();
           final token = preferences.getString(ApiConstants.keyToken);
           if (token != null && token.isNotEmpty) {
-            options.headers["Authorization"] = "Bearer $token";
+            options.headers['Authorization'] = ['Bearer', token].join(' ');
           }
           return handler.next(options);
         },
@@ -49,7 +48,6 @@ class ApiService {
 
   Dio get dio => _dio;
 
-  // Test API connection
   Future<Map<String, dynamic>> testConnection() async {
     try {
       final response = await _dio.get(ApiConstants.test);
@@ -59,7 +57,6 @@ class ApiService {
     }
   }
 
-  // POST request
   Future<Response> post(String endpoint, {dynamic data}) async {
     try {
       return await _dio.post(endpoint, data: data);
@@ -68,7 +65,6 @@ class ApiService {
     }
   }
 
-  // GET request
   Future<Response> get(String endpoint, {Map<String, dynamic>? params}) async {
     try {
       return await _dio.get(endpoint, queryParameters: params);
@@ -77,7 +73,6 @@ class ApiService {
     }
   }
 
-  // PUT request
   Future<Response> put(String endpoint, {dynamic data}) async {
     try {
       return await _dio.put(endpoint, data: data);
@@ -86,7 +81,6 @@ class ApiService {
     }
   }
 
-  // DELETE request
   Future<Response> delete(String endpoint) async {
     try {
       return await _dio.delete(endpoint);
@@ -95,7 +89,6 @@ class ApiService {
     }
   }
 
-  // Error handler
   String _handleError(DioException error) {
     print('🚨 API Error [${error.type}]: ${error.message}');
     if (error.response != null) {

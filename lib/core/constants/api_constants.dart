@@ -23,8 +23,6 @@ class ApiConstants {
   static String get getProfile => '$baseUrl/get-profile.php';
   static String get updateProfile => '$baseUrl/update-profile.php';
   static String get changePassword => '$baseUrl/change-password.php';
-  static String get verifyGooglePlayPurchase =>
-      '$baseUrl/verify-google-play-purchase.php';
   static String get getUserSettings => '$baseUrl/get-user-settings.php';
   static String get updateUserSettings => '$baseUrl/update-user-settings.php';
   static String get uploadProfileFolder => '$baseUrl/upload-photo.php';

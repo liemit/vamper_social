@@ -48,9 +48,6 @@ dependencies:
   dio: ^5.4.0
   crypto: ^3.0.7
 
-  # Google Play Billing
-  in_app_purchase: ^3.2.3
-  
   # Local storage
   shared_preferences: ^2.2.2
   

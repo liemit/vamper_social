@@ -668,8 +668,8 @@ class AuthController extends GetxController {
     }
   }
 
-  // Verify and Recharge Payment
-  Future<bool> verifyAndRechargePayment(
+  // Sandbox-only test credit; this does not verify a real PayPal payment.
+  Future<bool> confirmSandboxCredit(
     int coins,
     double price,
     String paymentToken,
@@ -692,8 +692,8 @@ class AuthController extends GetxController {
       if (response.data['success'] == true) {
         currentUser.value = UserModel.fromJson(response.data['data']['user']);
         Get.snackbar(
-          'Payment Verified & Credited! 🎉',
-          response.data['message'] ?? 'Successfully added $coins coins!',
+          'Sandbox Test Credit Added',
+          response.data['message'] ?? '$coins test coins were added.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.success,
           colorText: Colors.white,
@@ -702,10 +702,10 @@ class AuthController extends GetxController {
       }
       return false;
     } catch (e) {
-      print('Error verifying payment: $e');
+      print('Error applying sandbox test credit: $e');
       Get.snackbar(
-        'Verification Failed',
-        'Could not verify payment token.',
+        'Sandbox Test Credit Failed',
+        'Could not add the test coins.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.error,
         colorText: Colors.white,
