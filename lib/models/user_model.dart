@@ -18,6 +18,8 @@ class UserModel {
   final String? updatedAt;
   final int? activeProfileFrameId;
   final int? activePartyFrameId;
+  final String? activeProfileFrameCode;
+  final String? activePartyFrameCode;
 
   UserModel({
     required this.id,
@@ -39,6 +41,8 @@ class UserModel {
     this.updatedAt,
     this.activeProfileFrameId,
     this.activePartyFrameId,
+    this.activeProfileFrameCode,
+    this.activePartyFrameCode,
   });
 
   int? get age {
@@ -47,7 +51,8 @@ class UserModel {
       final dob = DateTime.parse(dateOfBirth!);
       final now = DateTime.now();
       int age = now.year - dob.year;
-      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      if (now.month < dob.month ||
+          (now.month == dob.month && now.day < dob.day)) {
         age--;
       }
       return age;
@@ -76,6 +81,8 @@ class UserModel {
     String? updatedAt,
     int? activeProfileFrameId,
     int? activePartyFrameId,
+    String? activeProfileFrameCode,
+    String? activePartyFrameCode,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -97,6 +104,9 @@ class UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       activeProfileFrameId: activeProfileFrameId ?? this.activeProfileFrameId,
       activePartyFrameId: activePartyFrameId ?? this.activePartyFrameId,
+      activeProfileFrameCode:
+          activeProfileFrameCode ?? this.activeProfileFrameCode,
+      activePartyFrameCode: activePartyFrameCode ?? this.activePartyFrameCode,
     );
   }
 
@@ -114,13 +124,25 @@ class UserModel {
       location: json['location'],
       latitude: json['latitude'],
       longitude: json['longitude'],
-      isVerified: json['is_verified'] == '1' || json['is_verified'] == 1 || json['is_verified'] == true,
+      isVerified:
+          json['is_verified'] == '1' ||
+          json['is_verified'] == 1 ||
+          json['is_verified'] == true,
       coins: int.tryParse(json['coins'].toString()) ?? 0,
-      isActive: json['is_active'] == '1' || json['is_active'] == 1 || json['is_active'] == true,
+      isActive:
+          json['is_active'] == '1' ||
+          json['is_active'] == 1 ||
+          json['is_active'] == true,
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'],
-      activeProfileFrameId: json['active_profile_frame_id'] != null ? int.tryParse(json['active_profile_frame_id'].toString()) : null,
-      activePartyFrameId: json['active_party_frame_id'] != null ? int.tryParse(json['active_party_frame_id'].toString()) : null,
+      activeProfileFrameId: json['active_profile_frame_id'] != null
+          ? int.tryParse(json['active_profile_frame_id'].toString())
+          : null,
+      activePartyFrameId: json['active_party_frame_id'] != null
+          ? int.tryParse(json['active_party_frame_id'].toString())
+          : null,
+      activeProfileFrameCode: json['active_profile_frame_code']?.toString(),
+      activePartyFrameCode: json['active_party_frame_code']?.toString(),
     );
   }
 
@@ -129,6 +151,7 @@ class UserModel {
       'id': id,
       'full_name': fullName,
       'email': email,
+      'role': role,
       'phone': phone,
       'gender': gender,
       'date_of_birth': dateOfBirth,
@@ -144,6 +167,8 @@ class UserModel {
       'updated_at': updatedAt,
       'active_profile_frame_id': activeProfileFrameId,
       'active_party_frame_id': activePartyFrameId,
+      'active_profile_frame_code': activeProfileFrameCode,
+      'active_party_frame_code': activePartyFrameCode,
     };
   }
 }

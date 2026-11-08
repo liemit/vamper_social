@@ -28,13 +28,23 @@ try {
 
     // 1. Search Users (by full_name or email)
     if ($type === 'all' || $type === 'users') {
-        $user_sql = "SELECT id, full_name, email, profile_photo, gender, location, is_verified
-                    FROM users
-                    WHERE (full_name LIKE :term OR email LIKE :term)
-                    AND is_active = 1
+        $user_sql = "SELECT u.id, u.full_name, u.email, u.profile_photo, u.gender, u.location,
+                            u.is_verified, frame.image_url AS active_profile_frame_code
+                    FROM users u
+                    LEFT JOIN shop_items frame
+                      ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
+                    LEFT JOIN user_settings us
+                      ON us.user_id = u.id AND us.setting_key = 'settings_show_in_search'
+                    WHERE (u.full_name LIKE :term OR u.email LIKE :term)
+                    AND u.is_active = 1
+                    AND (
+                        :current_user_id IS NOT NULL AND u.id = :current_user_id
+                        OR COALESCE(JSON_UNQUOTE(JSON_EXTRACT(us.setting_value, '$')), 1) = 1
+                    )
                     LIMIT 20";
         $stmt_u = $db->prepare($user_sql);
         $stmt_u->bindValue(':term', $like_term);
+        $stmt_u->bindValue(':current_user_id', $current_user_id, PDO::PARAM_INT);
         $stmt_u->execute();
         $matching_users = $stmt_u->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -42,11 +52,14 @@ try {
     // 2. Search Posts (by content or hashtag)
     if ($type === 'all' || $type === 'posts') {
         $post_sql = "SELECT p.*, u.full_name, u.profile_photo,
+                     frame.image_url AS active_profile_frame_code,
                      (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
                      (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) as comments_count,
                      (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id AND user_id = :curr_user) as is_liked
                      FROM posts p
                      JOIN users u ON p.user_id = u.id
+                     LEFT JOIN shop_items frame
+                       ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
                      WHERE p.status = 1
                      AND p.content LIKE :term
                      ORDER BY p.created_at DESC

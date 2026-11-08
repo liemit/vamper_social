@@ -1,6 +1,7 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -45,7 +46,7 @@ try {
         // User is only considered "new" if they haven't completed their gender/birthdate yet
         $is_new_user = empty($user['gender']);
 
-        $token = base64_encode($user['id'] . ':' . time());
+        $token = issueApiToken($db, (int)$user['id']);
 
         http_response_code(200);
         echo json_encode([
@@ -77,7 +78,7 @@ try {
         $stmt_user->execute([':id' => $new_id]);
         $newUser = $stmt_user->fetch(PDO::FETCH_ASSOC);
 
-        $token = base64_encode($new_id . ':' . time());
+        $token = issueApiToken($db, (int)$new_id);
 
         http_response_code(200);
         echo json_encode([

@@ -4,6 +4,7 @@ import 'package:animate_do/animate_do.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../widgets/user_avatar_with_frame.dart';
 import '../matches/create_party_screen.dart';
 import '../matches/party_room_screen.dart';
 
@@ -20,13 +21,9 @@ class _PartyTabState extends State<PartyTab> {
   final RxBool isLoadingParties = false.obs;
   String _selectedCategory = '🔥 Trending';
   String _searchQuery = '';
+  bool _showMyParties = false;
 
-  final categories = [
-    '🔥 Trending',
-    '🎵 Music',
-    '☕ Chill',
-    '💕 Dating',
-  ];
+  final categories = ['🔥 Trending', '🎵 Music', '☕ Chill', '💕 Dating'];
 
   @override
   void initState() {
@@ -37,12 +34,18 @@ class _PartyTabState extends State<PartyTab> {
   Future<void> fetchParties() async {
     try {
       isLoadingParties.value = true;
-      final response = await _authController.apiService.get('${ApiConstants.baseUrl}/get-parties.php');
+      final response = await _authController.apiService.get(
+        '${ApiConstants.baseUrl}/get-parties.php',
+      );
       if (response.data['success'] == true) {
         final List data = response.data['data'] ?? [];
         final list = data.map((e) => Map<String, dynamic>.from(e)).toList();
         // Sort by participants_count descending so top popular rooms appear first
-        list.sort((a, b) => (b['participants_count'] ?? 0).compareTo(a['participants_count'] ?? 0));
+        list.sort(
+          (a, b) => (b['participants_count'] ?? 0).compareTo(
+            a['participants_count'] ?? 0,
+          ),
+        );
         parties.value = list;
       }
     } catch (e) {
@@ -55,10 +58,12 @@ class _PartyTabState extends State<PartyTab> {
   void _handleJoinParty(Map<String, dynamic> party) {
     final userId = _authController.currentUser.value?.id.toString();
     final hostId = party['host_id']?.toString();
-    final isPrivate = party['is_private'] == 1 || party['is_private'] == '1' || party['is_private'] == true;
-    final roomPassword = party['password']?.toString() ?? '';
+    final isPrivate =
+        party['is_private'] == 1 ||
+        party['is_private'] == '1' ||
+        party['is_private'] == true;
 
-    if (isPrivate && userId != hostId && roomPassword.isNotEmpty) {
+    if (isPrivate && userId != hostId) {
       final TextEditingController passInputController = TextEditingController();
       bool obscureDialogPass = true;
 
@@ -66,7 +71,9 @@ class _PartyTabState extends State<PartyTab> {
         StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               title: Row(
                 children: const [
                   Icon(Icons.lock, color: Colors.pink),
@@ -85,15 +92,24 @@ class _PartyTabState extends State<PartyTab> {
                     obscureText: obscureDialogPass,
                     decoration: InputDecoration(
                       hintText: 'Enter room password...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          obscureDialogPass ? Icons.visibility_off : Icons.visibility,
+                          obscureDialogPass
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: AppColors.textLight,
                         ),
                         onPressed: () {
-                          setDialogState(() => obscureDialogPass = !obscureDialogPass);
+                          setDialogState(
+                            () => obscureDialogPass = !obscureDialogPass,
+                          );
                         },
                       ),
                     ),
@@ -103,17 +119,27 @@ class _PartyTabState extends State<PartyTab> {
               actions: [
                 TextButton(
                   onPressed: () => Get.back(),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () {
-                    if (passInputController.text.trim() == roomPassword) {
-                      Get.back();
-                      Get.to(() => PartyRoomScreen(party: party))?.then((_) => fetchParties());
-                    } else {
-                      Get.snackbar('Access Denied', 'Incorrect password!', snackPosition: SnackPosition.BOTTOM);
-                    }
+                    final password = passInputController.text.trim();
+                    Get.back();
+                    Get.to(
+                      () => PartyRoomScreen(
+                        party: party,
+                        accessPassword: password,
+                      ),
+                    )?.then((result) {
+                      fetchParties();
+                    });
                   },
                   child: const Text('Join Room'),
                 ),
@@ -123,28 +149,169 @@ class _PartyTabState extends State<PartyTab> {
         ),
       );
     } else {
-      Get.to(() => PartyRoomScreen(party: party))?.then((_) => fetchParties());
+      Get.to(() => PartyRoomScreen(party: party))?.then((result) {
+        fetchParties();
+      });
     }
   }
 
   List<Map<String, dynamic>> get filteredParties {
-    List<Map<String, dynamic>> list = parties;
-    if (_selectedCategory == '🎵 Music') {
-      list = parties.where((p) => p['theme'].toString().toLowerCase().contains('music') || p['theme'].toString().toLowerCase().contains('singing')).toList();
-    } else if (_selectedCategory == '☕ Chill') {
-      list = parties.where((p) => p['theme'].toString().toLowerCase().contains('chill') || p['theme'].toString().toLowerCase().contains('talk')).toList();
-    } else if (_selectedCategory == '💕 Dating') {
-      list = parties.where((p) => p['theme'].toString().toLowerCase().contains('dating') || p['theme'].toString().toLowerCase().contains('match')).toList();
+    final userId = _authController.currentUser.value?.id.toString();
+    List<Map<String, dynamic>> list = _showMyParties
+        ? parties.where((party) => party['host_id']?.toString() == userId).toList()
+        : parties.toList();
+    if (!_showMyParties && _selectedCategory == '🎵 Music') {
+      list = parties
+          .where(
+            (p) =>
+                p['theme'].toString().toLowerCase().contains('music') ||
+                p['theme'].toString().toLowerCase().contains('singing'),
+          )
+          .toList();
+    } else if (!_showMyParties && _selectedCategory == '☕ Chill') {
+      list = parties
+          .where(
+            (p) =>
+                p['theme'].toString().toLowerCase().contains('chill') ||
+                p['theme'].toString().toLowerCase().contains('talk'),
+          )
+          .toList();
+    } else if (!_showMyParties && _selectedCategory == '💕 Dating') {
+      list = parties
+          .where(
+            (p) =>
+                p['theme'].toString().toLowerCase().contains('dating') ||
+                p['theme'].toString().toLowerCase().contains('match'),
+          )
+          .toList();
     }
 
     if (_searchQuery.trim().isNotEmpty) {
       final q = _searchQuery.trim().toLowerCase();
-      list = list.where((p) =>
-        p['title'].toString().toLowerCase().contains(q) ||
-        p['host_name'].toString().toLowerCase().contains(q)
-      ).toList();
+      list = list
+          .where(
+            (p) =>
+                p['title'].toString().toLowerCase().contains(q) ||
+                p['host_name'].toString().toLowerCase().contains(q),
+          )
+          .toList();
     }
     return list;
+  }
+
+  Future<void> _editParty(Map<String, dynamic> party) async {
+    final updated = await Get.to<Map<String, dynamic>>(
+      () => CreatePartyScreen(editParty: Map<String, dynamic>.from(party)),
+    );
+    if (updated != null) {
+      party.addAll(updated);
+      await fetchParties();
+    }
+  }
+
+  Future<void> _deleteParty(Map<String, dynamic> party) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Delete party room?'),
+        content: Text('"${party['title']}" will be removed permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Get.back(result: true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    Get.dialog<void>(
+      const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Expanded(child: Text('Deleting party room...')),
+          ],
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    try {
+      final response = await _authController.apiService.post(
+        '${ApiConstants.baseUrl}/delete-party.php',
+        data: {'party_id': party['id']},
+      );
+      if (Get.isDialogOpen ?? false) Get.back();
+      if (response.data is! Map || response.data['success'] != true) {
+        throw StateError(
+          response.data is Map
+              ? response.data['message']?.toString() ?? 'Unable to delete party.'
+              : 'Unable to delete party.',
+        );
+      }
+      parties.removeWhere((item) => item['id'].toString() == party['id'].toString());
+      Get.snackbar(
+        'Party deleted',
+        'The room has been removed.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      if (Get.isDialogOpen ?? false) Get.back();
+      Get.snackbar(
+        'Unable to delete party',
+        error.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Widget _partyModeButton({
+    required String title,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected ? Colors.white : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -167,29 +334,85 @@ class _PartyTabState extends State<PartyTab> {
                     children: const [
                       Text(
                         'Live Parties 🎉',
-                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                       SizedBox(height: 4),
-                      Text('Join audio rooms, share screen & listen to music!', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
+                      Text(
+                        'Join audio rooms, share screen & listen to music!',
+                        style: TextStyle(
+                          color: AppColors.textLight,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
-                    onPressed: () => Get.to(() => const CreatePartyScreen())?.then((_) => fetchParties()),
+                    onPressed: () => Get.to(
+                      () => const CreatePartyScreen(),
+                    )?.then((_) => fetchParties()),
                     icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Host Party', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Host Party',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
 
+            Obx(() {
+              final userId = _authController.currentUser.value?.id.toString();
+              final myRoomCount = parties
+                  .where((party) => party['host_id']?.toString() == userId)
+                  .length;
+              return Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    _partyModeButton(
+                      title: 'Discover',
+                      icon: Icons.explore_outlined,
+                      selected: !_showMyParties,
+                      onTap: () => setState(() => _showMyParties = false),
+                    ),
+                    _partyModeButton(
+                      title: 'My Rooms ($myRoomCount)',
+                      icon: Icons.meeting_room_outlined,
+                      selected: _showMyParties,
+                      onTap: () => setState(() {
+                        _showMyParties = true;
+                        _searchQuery = '';
+                      }),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 16),
+
             // Banner Promo Card
+            if (!_showMyParties) ...[
             FadeInLeft(
               child: Container(
                 width: double.infinity,
@@ -202,7 +425,11 @@ class _PartyTabState extends State<PartyTab> {
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(color: Colors.purple.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6)),
+                    BoxShadow(
+                      color: Colors.purple.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
                 child: Row(
@@ -211,13 +438,30 @@ class _PartyTabState extends State<PartyTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
-                          Text('Broadcast Live 🎤', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                          Text(
+                            'Broadcast Live 🎤',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           SizedBox(height: 6),
-                          Text('Screen share, play music & chat with people in real-time!', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          Text(
+                            'Screen share, play music & chat with people in real-time!',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.headset_mic_rounded, color: Colors.white, size: 54),
+                    const Icon(
+                      Icons.headset_mic_rounded,
+                      color: Colors.white,
+                      size: 54,
+                    ),
                   ],
                 ),
               ),
@@ -229,11 +473,20 @@ class _PartyTabState extends State<PartyTab> {
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Search party rooms or hosts...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.textLight),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppColors.textLight,
+                ),
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -247,11 +500,28 @@ class _PartyTabState extends State<PartyTab> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 10),
                     child: ChoiceChip(
-                      label: Text(cat, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.textPrimary)),
+                      label: Text(
+                        cat,
+                        style: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textPrimary,
+                        ),
+                      ),
                       selected: isSelected,
                       selectedColor: AppColors.primary,
                       backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? AppColors.primary : AppColors.border)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
+                        ),
+                      ),
                       onSelected: (selected) {
                         setState(() => _selectedCategory = cat);
                       },
@@ -261,11 +531,17 @@ class _PartyTabState extends State<PartyTab> {
               ),
             ),
             const SizedBox(height: 20),
+            ],
 
             // Party List
             Obx(() {
               if (isLoadingParties.value && parties.isEmpty) {
-                return const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 40), child: CircularProgressIndicator(color: AppColors.primary)));
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
               }
 
               final displayList = filteredParties;
@@ -274,20 +550,51 @@ class _PartyTabState extends State<PartyTab> {
                 return Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Column(
                     children: [
-                      const Icon(Icons.celebration_outlined, size: 60, color: AppColors.textLight),
+                      const Icon(
+                        Icons.celebration_outlined,
+                        size: 60,
+                        color: AppColors.textLight,
+                      ),
                       const SizedBox(height: 12),
-                      const Text('No live party rooms here yet!', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        _showMyParties
+                            ? 'You have not created any live rooms yet.'
+                            : 'No live party rooms here yet!',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      const Text('Start your own party room and invite friends!', style: TextStyle(color: AppColors.textLight, fontSize: 13)),
+                      Text(
+                        _showMyParties
+                            ? 'Create a room to start building your party list.'
+                            : 'Start your own party room and invite friends!',
+                        style: const TextStyle(
+                          color: AppColors.textLight,
+                          fontSize: 13,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-                        onPressed: () => Get.to(() => const CreatePartyScreen())?.then((_) => fetchParties()),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => Get.to(
+                          () => const CreatePartyScreen(),
+                        )?.then((_) => fetchParties()),
                         icon: const Icon(Icons.add),
-                        label: const Text('Create Party Room'),
+                        label: Text(
+                          _showMyParties ? 'Create a room' : 'Create Party Room',
+                        ),
                       ),
                     ],
                   ),
@@ -300,7 +607,6 @@ class _PartyTabState extends State<PartyTab> {
                 itemCount: displayList.length,
                 itemBuilder: (context, index) {
                   final party = displayList[index];
-                  final hostPhoto = _authController.getFullImageUrl(party['host_photo']);
                   final count = party['participants_count'] ?? 1;
 
                   return FadeInUp(
@@ -314,40 +620,41 @@ class _PartyTabState extends State<PartyTab> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-                          border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                          ),
                         ),
                         child: Row(
                           children: [
                             Stack(
                               children: [
-                                Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    gradient: hostPhoto == null ? AppColors.primaryGradient : null,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: ClipOval(
-                                    child: hostPhoto != null
-                                        ? Image.network(
-                                            hostPhoto,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                              decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
-                                              child: const Icon(Icons.person, size: 28, color: Colors.white),
-                                            ),
-                                          )
-                                        : const Icon(Icons.person, size: 28, color: Colors.white),
-                                  ),
+                                UserAvatarWithFrame(
+                                  photoUrl: party['host_photo']?.toString(),
+                                  frameCode: party['host_profile_frame_code']
+                                      ?.toString(),
+                                  size: 56,
                                 ),
                                 Positioned(
                                   right: 0,
                                   bottom: 0,
                                   child: Container(
                                     padding: const EdgeInsets.all(3),
-                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                    child: const Icon(Icons.mic, size: 10, color: Colors.white),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.mic,
+                                      size: 10,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -360,21 +667,57 @@ class _PartyTabState extends State<PartyTab> {
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(6)),
-                                        child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'LIVE',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
-                                      if (party['is_private'] == 1 || party['is_private'] == '1' || party['is_private'] == true) ...[
+                                      if (party['is_private'] == 1 ||
+                                          party['is_private'] == '1' ||
+                                          party['is_private'] == true) ...[
                                         const SizedBox(width: 4),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6)),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black87,
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: const [
-                                              Icon(Icons.lock, color: Colors.amber, size: 10),
+                                              Icon(
+                                                Icons.lock,
+                                                color: Colors.amber,
+                                                size: 10,
+                                              ),
                                               SizedBox(width: 2),
-                                              Text('Private', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                              Text(
+                                                'Private',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -383,7 +726,11 @@ class _PartyTabState extends State<PartyTab> {
                                       Expanded(
                                         child: Text(
                                           party['title'],
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: AppColors.textPrimary,
+                                          ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -391,7 +738,13 @@ class _PartyTabState extends State<PartyTab> {
                                     ],
                                   ),
                                   const SizedBox(height: 6),
-                                  Text('Host: ${party['host_name']} • ${party['theme']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                  Text(
+                                    'Host: ${party['host_name']} • ${party['theme']}',
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -399,23 +752,92 @@ class _PartyTabState extends State<PartyTab> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: Colors.pink.shade50, borderRadius: BorderRadius.circular(12)),
-                                  child: Row(
+                                if (!_showMyParties) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.pink.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.local_fire_department,
+                                          color: Colors.pink,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '$count',
+                                          style: const TextStyle(
+                                            color: Colors.pink,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: AppColors.primaryGradient,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Text(
+                                      'Join',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (_showMyParties)
+                                  Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.local_fire_department, color: Colors.pink, size: 14),
-                                      const SizedBox(width: 2),
-                                      Text('$count', style: const TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 12)),
+                                      IconButton(
+                                        tooltip: 'Edit room',
+                                        onPressed: () => _editParty(party),
+                                        icon: const Icon(Icons.edit_outlined),
+                                        color: AppColors.primary,
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Delete room',
+                                        onPressed: () => _deleteParty(party),
+                                        icon: const Icon(Icons.delete_outline),
+                                        color: AppColors.error,
+                                      ),
                                     ],
                                   ),
-                                ),
                                 const SizedBox(height: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(14)),
-                                  child: const Text('Join', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: AppColors.primaryGradient,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Text(
+                                    'Join',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

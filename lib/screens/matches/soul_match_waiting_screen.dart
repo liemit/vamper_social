@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../../core/constants/api_constants.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/discovery_controller.dart';
-import '../../app/theme/app_colors.dart';
 import 'soul_match_chat_screen.dart';
 
 class SoulMatchWaitingScreen extends StatefulWidget {
@@ -137,11 +136,11 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
                         height: 240,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.pink.withOpacity(0.3), width: 2),
+                          border: Border.all(color: Colors.pink.withValues(alpha: 0.3), width: 2),
                           gradient: SweepGradient(
                             colors: [
-                              Colors.pink.withOpacity(0.0),
-                              Colors.pink.withOpacity(0.4),
+                              Colors.pink.withValues(alpha: 0.0),
+                              Colors.pink.withValues(alpha: 0.4),
                             ],
                           ),
                         ),
@@ -152,7 +151,7 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.pink.shade500.withOpacity(0.2),
+                        color: Colors.pink.shade500.withValues(alpha: 0.2),
                       ),
                     ),
                     const CircleAvatar(

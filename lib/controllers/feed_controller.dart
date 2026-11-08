@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -111,11 +112,11 @@ class FeedController extends GetxController {
   Future<bool> createPost(String content, List<XFile> images, {List<Map<String, double>>? alignments}) async {
     try {
       isLoading.value = true;
-      final userId = _authController.currentUser.value?.id;
-      if (userId == null) return false;
+      final user = _authController.currentUser.value;
+      if (user == null) return false;
 
       final formData = dio.FormData.fromMap({
-        'user_id': userId,
+        'user_id': user.id,
         'content': content,
         if (alignments != null) 'alignments': jsonEncode(alignments),
       });
@@ -134,7 +135,44 @@ class FeedController extends GetxController {
       );
 
       if (response.data['success'] == true) {
-        await fetchPosts(isRefresh: true);
+        final postId = int.tryParse(response.data['data']?['post_id']?.toString() ?? '') ?? 0;
+        final optimisticPhotos = images.asMap().entries.map((entry) {
+          final index = entry.key;
+          final image = entry.value;
+          final alignment = alignments != null && index < alignments.length
+              ? alignments[index]
+              : {'x': 0.0, 'y': 0.0, 'scale': 1.0};
+          return PostPhoto(
+            url: image.path,
+            alignmentX: alignment['x'] ?? 0.0,
+            alignmentY: alignment['y'] ?? 0.0,
+            scale: alignment['scale'] ?? 1.0,
+          );
+        }).toList();
+
+        final optimisticPost = PostModel(
+          id: postId > 0 ? postId : DateTime.now().millisecondsSinceEpoch,
+          userId: user.id.toString(),
+          authorName: user.fullName,
+          authorPhoto: user.profilePhoto,
+          content: content,
+          photos: optimisticPhotos,
+          status: 1,
+          isLiked: false,
+          likesCount: 0,
+          commentsCount: 0,
+          createdAt: DateTime.now(),
+        );
+
+        final existing = posts.indexWhere((p) => p.id == optimisticPost.id);
+        if (existing != -1) {
+          posts[existing] = optimisticPost;
+        } else {
+          posts.insert(0, optimisticPost);
+        }
+        posts.refresh();
+
+        unawaited(fetchPosts(isRefresh: true));
         return true;
       }
       return false;
@@ -163,8 +201,8 @@ class FeedController extends GetxController {
       final formData = dio.FormData.fromMap({
         'user_id': userId,
         'post_id': postId,
-        'content': ?content,
-        'status': ?status,
+        if (content != null) 'content': content,
+        if (status != null) 'status': status,
         if (deleteImageUrls != null) 'delete_photos': jsonEncode(deleteImageUrls),
         if (newAlignments != null) 'new_alignments': jsonEncode(newAlignments),
         if (updateAlignments != null) 'update_alignments': jsonEncode(updateAlignments),

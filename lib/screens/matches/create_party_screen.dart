@@ -6,7 +6,9 @@ import '../../core/constants/api_constants.dart';
 import 'party_room_screen.dart';
 
 class CreatePartyScreen extends StatefulWidget {
-  const CreatePartyScreen({super.key});
+  final Map<String, dynamic>? editParty;
+
+  const CreatePartyScreen({super.key, this.editParty});
 
   @override
   State<CreatePartyScreen> createState() => _CreatePartyScreenState();
@@ -28,15 +30,50 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
     'Dating & Matching 💕',
   ];
 
+  bool get isEditMode => widget.editParty != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final party = widget.editParty;
+    if (party != null) {
+      _titleController.text = party['title']?.toString() ?? '';
+      _selectedTheme = party['theme']?.toString() ?? _selectedTheme;
+      if (!themes.contains(_selectedTheme)) themes.insert(0, _selectedTheme);
+      _isPrivate = party['is_private'] == 1 ||
+          party['is_private'] == '1' ||
+          party['is_private'] == true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _createParty() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
-      Get.snackbar('Error', 'Please enter a party room title', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Please enter a party room title',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
-    if (_isPrivate && _passwordController.text.trim().isEmpty) {
-      Get.snackbar('Error', 'Please enter a password for private room', snackPosition: SnackPosition.BOTTOM);
+    final password = _passwordController.text.trim();
+    final wasPrivate = widget.editParty?['is_private'] == 1 ||
+      widget.editParty?['is_private'] == '1' ||
+      widget.editParty?['is_private'] == true;
+    if (_isPrivate && password.isEmpty && !(isEditMode && wasPrivate)) {
+      Get.snackbar(
+        'Error',
+        'Please enter a password for private room',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
@@ -48,37 +85,68 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
 
     try {
       final response = await authController.apiService.post(
-        '${ApiConstants.baseUrl}/create-party.php',
+        '${ApiConstants.baseUrl}/${isEditMode ? 'update-party.php' : 'create-party.php'}',
         data: {
-          'host_id': userId,
+          if (isEditMode) 'party_id': widget.editParty!['id'],
           'title': title,
           'theme': _selectedTheme,
           'is_private': _isPrivate ? 1 : 0,
-          'password': _passwordController.text.trim(),
+          'password': password,
         },
       );
 
       if (response.data['success'] == true) {
+        final responseData = Map<String, dynamic>.from(response.data['data'] ?? {});
+        if (responseData['coins'] != null && authController.currentUser.value != null) {
+          await authController.updateCachedUser(
+            authController.currentUser.value!.copyWith(
+              coins: int.tryParse(responseData['coins'].toString()) ??
+                  authController.currentUser.value!.coins,
+            ),
+          );
+        }
+
+        if (isEditMode) {
+          Get.back(result: responseData);
+          Get.snackbar(
+            'Party updated',
+            'Your party room changes have been saved.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+
         final partyId = response.data['data']['party_id'];
         Get.back(); // close create screen
-        Get.to(() => PartyRoomScreen(party: {
-          'id': partyId,
-          'host_id': userId,
-          'title': title,
-          'theme': _selectedTheme,
-          'is_private': _isPrivate ? 1 : 0,
-          'password': _passwordController.text.trim(),
-          'host_name': authController.currentUser.value?.fullName ?? 'Host',
-          'host_photo': authController.currentUser.value?.profilePhoto,
-        }));
+        Get.to(
+          () => PartyRoomScreen(
+            party: {
+              'id': partyId,
+              'host_id': userId,
+              'title': title,
+              'theme': _selectedTheme,
+              'is_private': _isPrivate ? 1 : 0,
+              'host_name': authController.currentUser.value?.fullName ?? 'Host',
+              'host_photo': authController.currentUser.value?.profilePhoto,
+            },
+          ),
+        );
       } else {
-        Get.snackbar('Error', response.data['message'] ?? 'Could not create party', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          'Error',
+          response.data['message'] ?? 'Could not create party',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     } catch (e) {
       print('Error creating party: $e');
-      Get.snackbar('Error', 'Failed to create party room', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        e.toString().replaceFirst('Bad state: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -87,7 +155,13 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Create Party Room 🎉', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: Text(
+          isEditMode ? 'Edit Party Room' : 'Create Party Room 🎉',
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -100,7 +174,23 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Room Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            if (!isEditMode)
+              Container(
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Your first 3 party rooms are free. Each room after that costs 200 VPC.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            Text(
+              'Room Title',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _titleController,
@@ -108,11 +198,17 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                 hintText: 'e.g., Saturday Night Chill & Music 🎶',
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Select Room Theme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Select Room Theme',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -123,7 +219,9 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                   label: Text(theme),
                   selected: isSelected,
                   selectedColor: AppColors.primary,
-                  labelStyle: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                  ),
                   onSelected: (selected) {
                     setState(() => _selectedTheme = theme);
                   },
@@ -133,31 +231,49 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                activeColor: AppColors.primary,
-                title: const Text('Private Room 🔒', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                subtitle: const Text('Require a password to join this party room'),
+                activeThumbColor: AppColors.primary,
+                title: const Text(
+                  'Private Room 🔒',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                subtitle: const Text(
+                  'Require a password to join this party room',
+                ),
                 value: _isPrivate,
                 onChanged: (val) => setState(() => _isPrivate = val),
               ),
             ),
             if (_isPrivate) ...[
               const SizedBox(height: 16),
-              const Text('Room Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                'Room Password',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  hintText: 'Enter room password...',
+                  hintText: isEditMode && _isPrivate
+                    ? 'Leave blank to keep current password'
+                    : 'Enter room password...',
                   filled: true,
                   fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: AppColors.textLight,
                     ),
                     onPressed: () {
@@ -174,11 +290,19 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Go Live 🎉', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : Text(
+                    isEditMode ? 'Save Changes' : 'Go Live 🎉',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ],
         ),

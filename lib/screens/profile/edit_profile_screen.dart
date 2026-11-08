@@ -9,7 +9,6 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/loading_overlay.dart';
 import '../../controllers/auth_controller.dart';
-import '../../core/constants/api_constants.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});

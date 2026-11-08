@@ -1,22 +1,234 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
+import '../../core/constants/api_constants.dart';
+import '../../widgets/vpc_coin_icon.dart';
 import 'store_screen.dart';
 
-class CoinShopScreen extends StatelessWidget {
+class CoinShopScreen extends StatefulWidget {
   const CoinShopScreen({super.key});
+
+  @override
+  State<CoinShopScreen> createState() => _CoinShopScreenState();
+}
+
+class _CoinShopScreenState extends State<CoinShopScreen> {
+  static const bool _playBillingEnabled = false;
+  static const Map<String, int> _playProducts = {
+    'vamper_coins_100': 100,
+    'vamper_coins_500': 500,
+    'vamper_coins_1200': 1200,
+    'vamper_coins_3000': 3000,
+  };
+
+  final InAppPurchase _billing = InAppPurchase.instance;
+  final Map<String, ProductDetails> _productDetails = {};
+  final Set<String> _processingPurchaseTokens = {};
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  bool _isLoadingPlayProducts = false;
+  String? _playBillingError;
+
+  bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  bool get _usesGooglePlayBilling => _playBillingEnabled && _isAndroid;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_usesGooglePlayBilling) {
+      _purchaseSubscription = _billing.purchaseStream.listen(
+        _handlePurchaseUpdates,
+        onError: (Object error) {
+          if (mounted) {
+            setState(() => _playBillingError = error.toString());
+          }
+        },
+      );
+      _loadPlayProducts();
+    }
+  }
+
+  @override
+  void dispose() {
+    _purchaseSubscription?.cancel();
+    super.dispose();
+  }
+
+  String _obfuscatedAccountId(String userId) =>
+      sha256.convert(utf8.encode('vamper-user-$userId')).toString();
+
+  Future<void> _loadPlayProducts() async {
+    setState(() {
+      _isLoadingPlayProducts = true;
+      _playBillingError = null;
+    });
+
+    try {
+      final isAvailable = await _billing.isAvailable();
+      if (!isAvailable) {
+        throw StateError('Google Play Billing is unavailable on this device.');
+      }
+
+      final response = await _billing.queryProductDetails(_playProducts.keys.toSet());
+      if (response.error != null) {
+        throw StateError(response.error!.message);
+      }
+
+      _productDetails
+        ..clear()
+        ..addEntries(response.productDetails.map((product) => MapEntry(product.id, product)));
+      if (response.notFoundIDs.isNotEmpty) {
+        _playBillingError =
+            'Play Console products not found: ${response.notFoundIDs.join(', ')}';
+      }
+    } catch (error) {
+      _playBillingError = error.toString().replaceFirst('Bad state: ', '');
+    } finally {
+      if (mounted) setState(() => _isLoadingPlayProducts = false);
+    }
+  }
+
+  Future<void> _buyGooglePlayProduct(ProductDetails product) async {
+    if (_isLoadingPlayProducts) return;
+    final user = Get.find<AuthController>().currentUser.value;
+    if (user == null) {
+      Get.snackbar('Sign in required', 'Sign in before purchasing VPC.');
+      return;
+    }
+
+    try {
+      setState(() => _isLoadingPlayProducts = true);
+      final started = await _billing.buyConsumable(
+        purchaseParam: PurchaseParam(
+          productDetails: product,
+          applicationUserName: _obfuscatedAccountId(user.id),
+        ),
+        autoConsume: true,
+      );
+      if (!started) {
+        if (mounted) setState(() => _isLoadingPlayProducts = false);
+        Get.snackbar('Purchase not started', 'Google Play could not start the purchase.');
+      }
+    } catch (error) {
+      if (mounted) setState(() => _isLoadingPlayProducts = false);
+      Get.snackbar(
+        'Purchase failed',
+        error.toString().replaceFirst('Bad state: ', ''),
+      );
+    }
+  }
+
+  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if (purchase.status == PurchaseStatus.pending) {
+        if (mounted) setState(() => _isLoadingPlayProducts = true);
+        continue;
+      }
+
+      if (purchase.status == PurchaseStatus.error) {
+        if (mounted) {
+          setState(() => _isLoadingPlayProducts = false);
+          Get.snackbar(
+            'Purchase failed',
+            purchase.error?.message ?? 'Google Play did not complete this purchase.',
+          );
+        }
+        continue;
+      }
+
+      if (purchase.status != PurchaseStatus.purchased &&
+          purchase.status != PurchaseStatus.restored) {
+        if (mounted) setState(() => _isLoadingPlayProducts = false);
+        continue;
+      }
+
+      final purchaseToken = purchase.verificationData.serverVerificationData;
+      if (purchaseToken.isEmpty ||
+          !_playProducts.containsKey(purchase.productID) ||
+          !_processingPurchaseTokens.add(purchaseToken)) {
+        continue;
+      }
+
+      try {
+        final authController = Get.find<AuthController>();
+        final user = authController.currentUser.value;
+        if (user == null) throw StateError('User session is not available.');
+
+        final response = await authController.apiService.post(
+          ApiConstants.verifyGooglePlayPurchase,
+          data: {
+            'product_id': purchase.productID,
+            'purchase_token': purchaseToken,
+            'obfuscated_account_id': _obfuscatedAccountId(user.id),
+          },
+        );
+        if (response.data is! Map || response.data['success'] != true) {
+          throw StateError(
+            response.data is Map
+                ? response.data['message']?.toString() ?? 'Purchase verification failed.'
+                : 'Purchase verification failed.',
+          );
+        }
+
+        final data = Map<String, dynamic>.from(response.data['data'] as Map);
+        final balance = int.tryParse(data['balance'].toString());
+        if (balance == null) throw StateError('Server returned an invalid VPC balance.');
+        await authController.updateCachedUser(user.copyWith(coins: balance));
+
+        var completionFailed = false;
+        if (purchase.pendingCompletePurchase) {
+          try {
+            await _billing.completePurchase(purchase);
+          } catch (error) {
+            completionFailed = true;
+            debugPrint('Google Play purchase was credited but could not be finalized: $error');
+          }
+        }
+        if (mounted) {
+          Get.snackbar(
+            completionFailed ? 'VPC credited' : 'Purchase successful',
+            completionFailed
+                ? 'VPC is credited. Reopen the app to retry finishing the Google Play transaction.'
+                : data['coins_credited'] == 0
+                    ? 'This purchase was already credited.'
+                    : '${data['coins_credited']} VPC added to your balance.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          Get.snackbar(
+            'Could not verify purchase',
+            error.toString().replaceFirst('Bad state: ', ''),
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 6),
+          );
+        }
+      } finally {
+        _processingPurchaseTokens.remove(purchaseToken);
+        if (mounted) setState(() => _isLoadingPlayProducts = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final AuthController authController = Get.find<AuthController>();
 
     final packages = [
-      {'coins': 100, 'price': 4.99, 'label': 'Starter Pack', 'popular': false},
-      {'coins': 500, 'price': 19.99, 'label': 'Popular Pack', 'popular': true},
-      {'coins': 1200, 'price': 39.99, 'label': 'Best Value', 'popular': false},
-      {'coins': 3000, 'price': 89.99, 'label': 'VIP Master', 'popular': false},
+      {'coins': 100, 'price': 4.99, 'product_id': 'vamper_coins_100', 'label': 'Starter Pack', 'popular': false},
+      {'coins': 500, 'price': 19.99, 'product_id': 'vamper_coins_500', 'label': 'Popular Pack', 'popular': true},
+      {'coins': 1200, 'price': 39.99, 'product_id': 'vamper_coins_1200', 'label': 'Best Value', 'popular': false},
+      {'coins': 3000, 'price': 89.99, 'product_id': 'vamper_coins_3000', 'label': 'VIP Master', 'popular': false},
     ];
 
     return Scaffold(
@@ -63,7 +275,7 @@ class CoinShopScreen extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.monetization_on, color: Colors.amber, size: 40),
+                    child: const VpcCoinIcon(size: 40),
                   ),
                 ],
               ),
@@ -84,9 +296,80 @@ class CoinShopScreen extends StatelessWidget {
             const SizedBox(height: 24),
             const Text('Select Coin Package', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
             const SizedBox(height: 16),
+            if (_usesGooglePlayBilling) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.shop_2_outlined, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _playBillingError ??
+                            (_isLoadingPlayProducts
+                                ? 'Loading Google Play products...'
+                                : 'Secure checkout and local pricing by Google Play.'),
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                      ),
+                    ),
+                    if (!_isLoadingPlayProducts && _productDetails.isEmpty)
+                      IconButton(
+                        tooltip: 'Retry loading products',
+                        onPressed: _loadPlayProducts,
+                        icon: const Icon(Icons.refresh),
+                      ),
+                  ],
+                ),
+              ),
+            ] else if (kIsWeb) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Web checkout is currently PayPal Sandbox for testing.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ),
+            ] else if (_isAndroid) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Coin purchases on Android are temporarily unavailable. Google Play Billing will be enabled after Play Console setup.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Coin purchases are not configured for this platform yet.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ),
+            ],
 
-            // Packages Grid
-            GridView.builder(
+            // Coin packages are only offered where a supported checkout is enabled.
+            if (!_isAndroid || _playBillingEnabled)
+              GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -99,9 +382,27 @@ class CoinShopScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final pkg = packages[index];
                 final isPopular = pkg['popular'] as bool;
+                final productId = pkg['product_id'] as String;
+                final playProduct = _productDetails[productId];
 
                 return InkWell(
-                  onTap: () => _showPayPalCheckout(context, authController, pkg['coins'] as int, pkg['price'] as double),
+                  onTap: _isLoadingPlayProducts
+                      ? null
+                      : _usesGooglePlayBilling
+                          ? (playProduct == null
+                              ? null
+                              : () => _buyGooglePlayProduct(playProduct))
+                          : kIsWeb
+                              ? () => _showPayPalCheckout(
+                                    context,
+                                    authController,
+                                    pkg['coins'] as int,
+                                    pkg['price'] as double,
+                                  )
+                              : () => Get.snackbar(
+                                    'Purchases unavailable',
+                                    'Coin purchases are not configured for this platform.',
+                                  ),
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     decoration: BoxDecoration(
@@ -138,7 +439,7 @@ class CoinShopScreen extends StatelessWidget {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.monetization_on, color: Colors.amber, size: 44),
+                              const VpcCoinIcon(size: 44),
                               const SizedBox(height: 12),
                               Text('${pkg['coins']} Coins', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                               const SizedBox(height: 4),
@@ -151,7 +452,10 @@ class CoinShopScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  '\$${pkg['price']}',
+                                  _usesGooglePlayBilling
+                                      ? (playProduct?.price ??
+                                          (_isLoadingPlayProducts ? 'Loading...' : 'Unavailable'))
+                                      : '\$${pkg['price']} USD',
                                   style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
                                 ),
                               ),
@@ -163,7 +467,7 @@ class CoinShopScreen extends StatelessWidget {
                   ),
                 );
               },
-            ),
+              ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(

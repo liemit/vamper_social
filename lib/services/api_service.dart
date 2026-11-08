@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/api_constants.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
-  
+
   late Dio _dio;
 
   ApiService._internal() {
@@ -20,8 +21,16 @@ class ApiService {
     // Add interceptors for logging & ngrok header enforcement
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          options.headers['ngrok-skip-browser-warning'] = 'true';
+        onRequest: (options, handler) async {
+          if (options.uri.host.endsWith('ngrok-free.app') ||
+              options.uri.host.endsWith('ngrok.io')) {
+            options.headers['ngrok-skip-browser-warning'] = 'true';
+          }
+          final preferences = await SharedPreferences.getInstance();
+          final token = preferences.getString(ApiConstants.keyToken);
+          if (token != null && token.isNotEmpty) {
+            options.headers["Authorization"] = "Bearer $token";
+          }
           return handler.next(options);
         },
       ),
@@ -29,8 +38,8 @@ class ApiService {
 
     _dio.interceptors.add(
       LogInterceptor(
-        requestBody: true,
-        responseBody: true,
+        requestBody: false,
+        responseBody: false,
         error: true,
         requestHeader: false,
         responseHeader: false,
@@ -99,23 +108,24 @@ class ApiService {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return 'Connection timeout. Please check your internet connection.';
-      
+
       case DioExceptionType.badResponse:
         final data = error.response?.data;
         if (data != null && data is Map) {
-          return data['message'] ?? 'Server error: ${error.response?.statusCode}';
+          return data['message'] ??
+              'Server error: ${error.response?.statusCode}';
         }
         return 'Server error: ${error.response?.statusCode}';
-      
+
       case DioExceptionType.cancel:
         return 'Request cancelled';
-      
+
       case DioExceptionType.unknown:
         if (error.message?.contains('SocketException') ?? false) {
-          return 'No internet connection or server unreachable (127.0.0.1).';
+          return 'No internet connection or API server unreachable.';
         }
         return 'Network error: ${error.message}';
-      
+
       default:
         return 'Something went wrong: ${error.message}';
     }

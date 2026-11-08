@@ -28,6 +28,34 @@ if (empty($sender_id) || empty($receiver_id)) {
 }
 
 try {
+    $db->exec("CREATE TABLE IF NOT EXISTS user_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        setting_key VARCHAR(100) NOT NULL,
+        setting_value JSON NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_setting (user_id, setting_key),
+        KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $settingsStmt = $db->prepare("SELECT setting_value FROM user_settings WHERE user_id = :user_id AND setting_key = 'settings_allow_messages' LIMIT 1");
+    $settingsStmt->execute([':user_id' => (int)$receiver_id]);
+    $allowMessagesSetting = $settingsStmt->fetchColumn();
+    $allowMessages = true;
+
+    if ($allowMessagesSetting !== false && $allowMessagesSetting !== null) {
+        $allowMessages = (bool)json_decode($allowMessagesSetting, true);
+    }
+
+    if ((int)$sender_id !== (int)$receiver_id && !$allowMessages) {
+        http_response_code(403);
+        echo json_encode([
+            "success" => false,
+            "message" => "This user does not accept direct messages at the moment."
+        ]);
+        exit();
+    }
     // 1. Ensure conversation exists
     if (empty($conversation_id)) {
         $u1 = min(intval($sender_id), intval($receiver_id));

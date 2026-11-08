@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
-import '../../app/theme/app_colors.dart';
 
 class SoulMatchChatScreen extends StatefulWidget {
   final Map<String, dynamic> partner;
@@ -258,7 +257,7 @@ class _SoulMatchChatScreenState extends State<SoulMatchChatScreen> {
               margin: const EdgeInsets.only(right: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _remainingSeconds <= 10 ? Colors.red : Colors.pink.withOpacity(0.2),
+                color: _remainingSeconds <= 10 ? Colors.red : Colors.pink.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: _remainingSeconds <= 10 ? Colors.red : Colors.pink),
               ),
@@ -285,7 +284,7 @@ class _SoulMatchChatScreenState extends State<SoulMatchChatScreen> {
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isMe ? Colors.pink : Colors.white.withOpacity(0.1),
+                      color: isMe ? Colors.pink : Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -310,7 +309,7 @@ class _SoulMatchChatScreenState extends State<SoulMatchChatScreen> {
                       hintText: 'Say something nice...',
                       hintStyle: const TextStyle(color: Colors.white54),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     ),

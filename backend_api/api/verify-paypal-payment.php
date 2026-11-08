@@ -1,90 +1,116 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
+require_once __DIR__ . '/../libs/AdminTools.php';
 
 $database = new Database();
 $db = $database->getConnection();
+$authenticatedUserId = authenticateApiUser($db);
+$data = json_decode(file_get_contents('php://input'));
+$coins = filter_var($data->coins ?? null, FILTER_VALIDATE_INT);
+$amountUsd = filter_var($data->amount_usd ?? null, FILTER_VALIDATE_FLOAT);
+$paymentToken = trim($data->payment_token ?? '');
+$userId = filter_var($data->user_id ?? null, FILTER_VALIDATE_INT);
 
-$data = json_decode(file_get_contents("php://input"));
-
-$user_id = $data->user_id ?? null;
-$coins_to_add = intval($data->coins ?? 0);
-$amount_usd = floatval($data->amount_usd ?? 0);
-$payment_token = trim($data->payment_token ?? '');
-
-if (empty($user_id) || $coins_to_add <= 0 || empty($payment_token)) {
+$packages = [100 => 4.99, 500 => 19.99, 1200 => 39.99, 3000 => 89.99];
+if (
+    !is_object($data)
+    || !$userId
+    || $userId !== $authenticatedUserId
+    || $coins === false
+    || !isset($packages[$coins])
+    || $amountUsd === false
+    || abs($packages[$coins] - $amountUsd) > 0.001
+    || !preg_match('/^pp_sandbox_[a-zA-Z0-9_-]{1,80}$/', $paymentToken)
+) {
     http_response_code(400);
-    echo json_encode([
-        "success" => false,
-        "message" => "Invalid verification parameters or missing payment token."
-    ]);
-    exit();
+    echo json_encode(['success' => false, 'message' => 'Invalid sandbox checkout parameters.']);
+    exit;
 }
 
 try {
-    // Ensure transactions table exists
-    $db->exec("CREATE TABLE IF NOT EXISTS transactions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        amount_usd DECIMAL(10,2) NOT NULL,
-        coins INT NOT NULL,
-        gateway VARCHAR(50) DEFAULT 'PayPal',
-        payment_token VARCHAR(255) NULL,
-        status VARCHAR(50) DEFAULT 'completed',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
-
-    // Check if this payment token was already processed (prevent double-spending / duplicate reward)
-    $checkStmt = $db->prepare("SELECT id FROM transactions WHERE payment_token = :token LIMIT 1");
-    $checkStmt->execute([':token' => $payment_token]);
-    if ($checkStmt->rowCount() > 0) {
-        http_response_code(400);
+    if (!adminTableExists($db, 'settings')) {
+        $db->exec("CREATE TABLE IF NOT EXISTS settings (
+            `key` VARCHAR(255) PRIMARY KEY,
+            `value` TEXT NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+    $modeQuery = $db->prepare("SELECT `value` FROM settings WHERE `key` = 'paypal_mode' LIMIT 1");
+    $modeQuery->execute();
+    $paymentMode = $modeQuery->fetchColumn() ?: 'sandbox';
+    if ($paymentMode !== 'sandbox') {
+        http_response_code(503);
         echo json_encode([
-            "success" => false,
-            "message" => "This payment has already been verified and processed."
+            'success' => false,
+            'message' => 'Live payment verification is not configured. No coins were credited.',
         ]);
-        exit();
+        exit;
     }
 
-    // 1. Update user coins securely
-    $query = "UPDATE users SET coins = coins + :coins, updated_at = NOW() WHERE id = :id";
-    $stmt = $db->prepare($query);
-    $stmt->execute([
-        ':coins' => $coins_to_add,
-        ':id' => $user_id
-    ]);
+    ensureVpcLedgerTable($db);
+    if (!adminTableExists($db, 'processed_sandbox_payments')) {
+        $db->exec("CREATE TABLE IF NOT EXISTS processed_sandbox_payments (
+            payment_token VARCHAR(100) NOT NULL PRIMARY KEY,
+            user_id INT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
 
-    // 2. Log verified transaction with token
-    $txQuery = "INSERT INTO transactions (user_id, amount_usd, coins, gateway, payment_token, status, created_at)
-                VALUES (:user_id, :amount_usd, :coins, 'PayPal', :payment_token, 'completed', NOW())";
-    $txStmt = $db->prepare($txQuery);
-    $txStmt->execute([
-        ':user_id' => $user_id,
-        ':amount_usd' => $amount_usd,
-        ':coins' => $coins_to_add,
-        ':payment_token' => $payment_token
-    ]);
+    $db->beginTransaction();
+    $db->prepare('INSERT INTO processed_sandbox_payments (payment_token, user_id) VALUES (:token, :user)')
+        ->execute([':token' => $paymentToken, ':user' => $userId]);
 
-    // Fetch updated user data
-    $stmt_user = $db->prepare("SELECT id, full_name, email, role, gender, date_of_birth, bio, profile_photo, location, is_verified, coins, is_active, created_at FROM users WHERE id = :id LIMIT 1");
-    $stmt_user->bindParam(":id", $user_id);
-    $stmt_user->execute();
-    $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
+    $balanceQuery = $db->prepare('SELECT coins FROM users WHERE id = :id AND is_active = 1 FOR UPDATE');
+    $balanceQuery->execute([':id' => $userId]);
+    $balanceBefore = $balanceQuery->fetchColumn();
+    if ($balanceBefore === false) {
+        throw new DomainException('User account is unavailable.');
+    }
 
-    http_response_code(200);
+    $db->prepare('UPDATE users SET coins = coins + :coins WHERE id = :id')
+        ->execute([':coins' => $coins, ':id' => $userId]);
+    $db->prepare(
+        "INSERT INTO transactions (user_id, amount_usd, coins, gateway, status, created_at)
+         VALUES (:user, :amount, :coins, 'PayPal Sandbox (mock)', 'sandbox_mock', NOW())"
+    )->execute([':user' => $userId, ':amount' => $amountUsd, ':coins' => $coins]);
+    $transactionId = (string)$db->lastInsertId();
+    recordVpcLedger(
+        $db,
+        $userId,
+        $coins,
+        (int)$balanceBefore,
+        (int)$balanceBefore + $coins,
+        'sandbox_mock_topup',
+        'Sandbox-only simulated coin package',
+        $transactionId
+    );
+    $userQuery = $db->prepare(
+        'SELECT id, full_name, email, role, gender, date_of_birth, bio, profile_photo,
+                location, is_verified, coins, is_active, created_at
+         FROM users WHERE id = :id LIMIT 1'
+    );
+    $userQuery->execute([':id' => $userId]);
+    $user = $userQuery->fetch(PDO::FETCH_ASSOC);
+    $db->commit();
+
     echo json_encode([
-        "success" => true,
-        "message" => "Payment verified successfully! Added $coins_to_add coins.",
-        "data" => [
-            "user" => $user
-        ]
+        'success' => true,
+        'message' => "Sandbox test: added $coins VPC. This does not represent a real PayPal payment.",
+        'data' => ['user' => $user],
     ]);
-
-} catch (PDOException $e) {
+} catch (DomainException $error) {
+    if ($db->inTransaction()) $db->rollBack();
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $error->getMessage()]);
+} catch (PDOException $error) {
+    if ($db->inTransaction()) $db->rollBack();
+    if ($error->getCode() === '23000') {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'This sandbox payment token was already processed.']);
+        exit;
+    }
+    error_log('Sandbox payment processing failed: ' . $error->getMessage());
     http_response_code(500);
-    echo json_encode([
-        "success" => false,
-        "message" => "Database error: " . $e->getMessage()
-    ]);
+    echo json_encode(['success' => false, 'message' => 'Unable to process the sandbox checkout.']);
 }
-?>

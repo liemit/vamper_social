@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:animate_do/animate_do.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/admin_controller.dart';
 import '../../controllers/auth_controller.dart';

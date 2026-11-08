@@ -11,8 +11,9 @@ import 'reposition_image_screen.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final PostModel? editPost;
+  final VoidCallback? onPostSuccess;
 
-  const CreatePostScreen({super.key, this.editPost});
+  const CreatePostScreen({super.key, this.editPost, this.onPostSuccess});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -29,6 +30,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   
   final List<PostPhoto> _existingPhotos = [];
   final List<String> _deletedImageUrls = [];
+
+  bool _isSubmitting = false;
 
   bool get isEditMode => widget.editPost != null;
 
@@ -61,42 +64,71 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       Get.snackbar('Error', 'Please enter some text or add a photo');
       return;
     }
+    if (_isSubmitting) return;
 
-    // Convert alignments and scales to JSON-friendly format
-    final List<Map<String, double>> newAligns = [];
-    for (int i = 0; i < _selectedNewImages.length; i++) {
-      newAligns.add({
-        'x': _newImageAlignments[i].x,
-        'y': _newImageAlignments[i].y,
-        'scale': _newImageScales[i],
-      });
-    }
+    setState(() => _isSubmitting = true);
 
-    bool success = false;
-    if (isEditMode) {
-      // Map current alignments for all existing photos
-      final Map<String, Map<String, double>> updatedExistingAligns = {};
-      for (var photo in _existingPhotos) {
-        updatedExistingAligns[photo.url] = {
-          'x': photo.alignmentX, 
-          'y': photo.alignmentY,
-          'scale': photo.scale
-        };
+    try {
+      // Convert alignments and scales to JSON-friendly format
+      final List<Map<String, double>> newAligns = [];
+      for (int i = 0; i < _selectedNewImages.length; i++) {
+        newAligns.add({
+          'x': _newImageAlignments[i].x,
+          'y': _newImageAlignments[i].y,
+          'scale': _newImageScales[i],
+        });
       }
 
-      success = await _feedController.updatePostWithPhotos(
-        postId: widget.editPost!.id,
-        content: content,
-        newImages: _selectedNewImages,
-        newAlignments: newAligns,
-        deleteImageUrls: _deletedImageUrls,
-        updateAlignments: updatedExistingAligns,
-      );
-    } else {
-      success = await _feedController.createPost(content, _selectedNewImages, alignments: newAligns);
-    }
+      bool success = false;
+      if (isEditMode) {
+        // Map current alignments for all existing photos
+        final Map<String, Map<String, double>> updatedExistingAligns = {};
+        for (var photo in _existingPhotos) {
+          updatedExistingAligns[photo.url] = {
+            'x': photo.alignmentX, 
+            'y': photo.alignmentY,
+            'scale': photo.scale
+          };
+        }
 
-    if (success) Get.back();
+        success = await _feedController.updatePostWithPhotos(
+          postId: widget.editPost!.id,
+          content: content,
+          newImages: _selectedNewImages,
+          newAlignments: newAligns,
+          deleteImageUrls: _deletedImageUrls,
+          updateAlignments: updatedExistingAligns,
+        );
+      } else {
+        success = await _feedController.createPost(content, _selectedNewImages, alignments: newAligns);
+      }
+
+      if (!mounted) return;
+
+      if (success) {
+        Get.snackbar(
+          'Success',
+          isEditMode ? 'Moment updated.' : 'Moment shared successfully!',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+
+        widget.onPostSuccess?.call();
+        Get.offAllNamed('/home');
+      } else {
+        Get.snackbar(
+          'Error',
+          isEditMode ? 'Unable to update your moment. Please try again.' : 'Unable to share your moment. Please try again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: Colors.white,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -106,8 +138,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         title: Text(isEditMode ? 'Edit Moment' : 'Create Moment'),
         actions: [
           TextButton(
-            onPressed: _handlePost,
-            child: const Text('Post', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            onPressed: _isSubmitting ? null : _handlePost,
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Text('Post', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         ],
       ),
@@ -271,7 +309,7 @@ class _ImagePreviewCard extends StatelessWidget {
             child: Container(
               width: double.infinity,
               height: double.infinity,
-              color: AppColors.border.withOpacity(0.2),
+              color: AppColors.border.withValues(alpha: 0.2),
               child: url != null
                   ? Image.network(url!, fit: BoxFit.cover, alignment: alignment)
                   : (kIsWeb ? Image.network(file!.path, fit: BoxFit.cover, alignment: alignment) : Image.file(file!, fit: BoxFit.cover, alignment: alignment)),

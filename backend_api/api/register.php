@@ -2,6 +2,7 @@
 require_once '../config/cors.php';
 require_once '../config/database.php';
 require_once '../libs/EmailSender.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -73,8 +74,7 @@ try {
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Generate simple token (in production, use JWT)
-        $token = base64_encode($user['id'] . ':' . time());
+        $token = issueApiToken($db, (int)$user['id']);
 
         // ============================================
         // AUTO-SEND OTP AFTER REGISTRATION - VIA EMAIL SENDER CLASS

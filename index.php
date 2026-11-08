@@ -1,4 +1,4 @@
 <?php
-header('Location: backend/public/admin');
+header('Location: /vamper_api/admin.php', true, 302);
 exit;
 ?>

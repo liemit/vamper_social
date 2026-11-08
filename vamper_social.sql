@@ -404,7 +404,7 @@ CREATE TABLE `parties` (
   `is_live` tinyint(1) DEFAULT '1',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `is_private` tinyint(1) DEFAULT '0',
-  `password` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -416,6 +416,39 @@ INSERT INTO `parties` (`id`, `host_id`, `title`, `theme`, `participants_count`, 
 (2, 16, 'Speed Dating & Voice Match 💕', '💕 Dating', 28, 1, '2026-10-25 15:22:34', 0, NULL),
 (3, 101, 'Singing Contest & EDM Party 🎤', '🎵 Music', 45, 1, '2026-10-25 15:22:34', 0, NULL),
 (4, 102, 'Confessions & Deep Soul Talks 💬', '☕ Chill', 18, 1, '2026-10-25 15:22:34', 0, NULL);
+
+CREATE TABLE `party_members` (
+  `party_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `seat_index` tinyint DEFAULT NULL,
+  `is_hand_raised` tinyint(1) NOT NULL DEFAULT '0',
+  `is_cohost` tinyint(1) NOT NULL DEFAULT '0',
+  `last_seen` datetime NOT NULL,
+  PRIMARY KEY (`party_id`, `user_id`),
+  UNIQUE KEY `uq_party_member_seat` (`party_id`, `seat_index`),
+  KEY `idx_party_member_last_seen` (`party_id`, `last_seen`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `party_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `party_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `message` varchar(500) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_party_messages` (`party_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `party_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `party_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `event_type` varchar(20) NOT NULL,
+  `payload` varchar(32) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_party_events` (`party_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -579,7 +612,10 @@ CREATE TABLE `reports` (
   `reason` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` text COLLATE utf8mb4_unicode_ci,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `reviewed_by` int DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `review_note` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -682,7 +718,9 @@ CREATE TABLE `users` (
   `coins` int DEFAULT '10',
   `is_active` tinyint(1) DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `active_profile_frame_id` int DEFAULT NULL,
+  `active_party_frame_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -1157,6 +1195,7 @@ CREATE TABLE IF NOT EXISTS `shop_items` (
   `type` enum('avatar','profile_frame','party_frame') COLLATE utf8mb4_unicode_ci NOT NULL,
   `image_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `price_coins` int NOT NULL DEFAULT 100,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1192,6 +1231,63 @@ CREATE TABLE IF NOT EXISTS `user_items` (
   `purchased_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_user_item` (`user_id`,`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `admin_accounts` (
+  `user_id` int NOT NULL,
+  `admin_role` enum('super_admin','moderator','finance','support') NOT NULL DEFAULT 'support',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `admin_accounts` (`user_id`, `admin_role`)
+SELECT `id`, 'super_admin' FROM `users` WHERE `role` = 'admin';
+
+CREATE TABLE IF NOT EXISTS `admin_audit_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `actor_id` int DEFAULT NULL,
+  `action` varchar(80) NOT NULL,
+  `entity_type` varchar(40) NOT NULL,
+  `entity_id` varchar(80) DEFAULT NULL,
+  `details_json` json DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_admin_audit_created` (`created_at`),
+  KEY `idx_admin_audit_actor` (`actor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `vpc_ledger` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `amount_delta` bigint NOT NULL,
+  `balance_before` bigint NOT NULL,
+  `balance_after` bigint NOT NULL,
+  `source_type` varchar(40) NOT NULL,
+  `source_id` varchar(100) DEFAULT NULL,
+  `reason` varchar(500) NOT NULL,
+  `actor_id` int DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_vpc_ledger_user` (`user_id`,`created_at`),
+  KEY `idx_vpc_ledger_source` (`source_type`,`source_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `processed_sandbox_payments` (
+  `payment_token` varchar(100) NOT NULL,
+  `user_id` int NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`payment_token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `api_tokens` (
+  `token_hash` char(64) NOT NULL,
+  `user_id` int NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`token_hash`),
+  KEY `idx_api_tokens_user_id` (`user_id`),
+  KEY `idx_api_tokens_expires_at` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 COMMIT;

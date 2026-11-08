@@ -55,7 +55,14 @@ try {
         $partner_id = $row['partner_id'];
 
         // Fetch partner details
-        $pStmt = $db->prepare("SELECT id, full_name, profile_photo, gender, date_of_birth, is_verified FROM users WHERE id = :pid LIMIT 1");
+        $pStmt = $db->prepare(
+            "SELECT u.id, u.full_name, u.profile_photo, u.gender, u.date_of_birth, u.is_verified,
+                    frame.image_url AS active_profile_frame_code
+             FROM users u
+             LEFT JOIN shop_items frame
+               ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
+             WHERE u.id = :pid LIMIT 1"
+        );
         $pStmt->execute([':pid' => $partner_id]);
         $partner = $pStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -77,6 +84,7 @@ try {
                 "partner_id" => $partner['id'],
                 "partner_name" => $partner['full_name'],
                 "partner_photo" => $partner['profile_photo'],
+                "partner_profile_frame_code" => $partner['active_profile_frame_code'],
                 "partner_gender" => $partner['gender'] ?? 'other',
                 "partner_age" => $age,
                 "partner_verified" => (int)$partner['is_verified'] === 1,

@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/api_constants.dart';
-import '../../models/user_model.dart';
+import '../../widgets/vpc_coin_icon.dart';
+import '../../widgets/profile_frame_style.dart';
 import 'coin_shop_screen.dart';
 
 class StoreScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _StoreScreenState extends State<StoreScreen> {
   final RxList<Map<String, dynamic>> _items = <Map<String, dynamic>>[].obs;
   final RxList<int> _ownedItemIds = <int>[].obs;
   final RxnInt _activeFrameId = RxnInt();
+  final RxnInt _activeAvatarId = RxnInt();
   final RxBool _isLoading = false.obs;
 
   @override
@@ -27,12 +29,10 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Future<void> _fetchShopItems() async {
-    final userId = _authController.currentUser.value?.id;
     try {
       _isLoading.value = true;
       final response = await _authController.apiService.get(
         '${ApiConstants.baseUrl}/get-shop-items.php',
-        params: userId != null ? {'user_id': userId} : null,
       );
 
       if (response.data['success'] == true) {
@@ -40,10 +40,26 @@ class _StoreScreenState extends State<StoreScreen> {
         _items.value = data.map((e) => Map<String, dynamic>.from(e)).toList();
 
         final List owned = response.data['owned_item_ids'] ?? [];
-        _ownedItemIds.value = owned.map((e) => int.parse(e.toString())).toList();
+        _ownedItemIds.value = owned
+            .map((e) => int.parse(e.toString()))
+            .toList();
 
-        if (response.data['active_profile_frame_id'] != null) {
-          _activeFrameId.value = int.tryParse(response.data['active_profile_frame_id'].toString());
+        _activeFrameId.value = int.tryParse(
+          response.data['active_profile_frame_id']?.toString() ?? '',
+        );
+        _activeAvatarId.value = int.tryParse(
+          response.data['active_avatar_item_id']?.toString() ?? '',
+        );
+
+        final currentUser = _authController.currentUser.value;
+        if (currentUser != null) {
+          await _authController.updateCachedUser(
+            currentUser.copyWith(
+              activeProfileFrameId: _activeFrameId.value,
+              activeProfileFrameCode: response.data['active_profile_frame_code']
+                  ?.toString(),
+            ),
+          );
         }
       }
     } catch (e) {
@@ -57,22 +73,30 @@ class _StoreScreenState extends State<StoreScreen> {
     final userId = _authController.currentUser.value?.id;
     if (userId == null) return;
 
-    final price = item['price_coins'] ?? 100;
+    final price = int.tryParse(item['price_coins']?.toString() ?? '') ?? 0;
     final currentCoins = _authController.currentUser.value?.coins ?? 0;
+    final itemId = int.parse(item['id'].toString());
 
     if (currentCoins < price) {
       Get.dialog(
         AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Text('Insufficient Coins 🪙'),
-          content: Text('You need $price VPC coins to buy "${item['name']}". Your current balance is $currentCoins coins.'),
+          content: Text(
+            'You need $price VPC coins to buy "${item['name']}". Your current balance is $currentCoins coins.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Get.back(),
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 Get.back();
                 Get.to(() => const CoinShopScreen());
@@ -89,44 +113,66 @@ class _StoreScreenState extends State<StoreScreen> {
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(price == 0 ? 'Get Free Item 🎁' : 'Purchase Item 🛍️'),
-        content: Text(price == 0 ? 'Claim "${item['name']}" for FREE?' : 'Buy "${item['name']}" for $price VPC coins?'),
+        content: Text(
+          price == 0
+              ? 'Claim "${item['name']}" for FREE?'
+              : 'Buy "${item['name']}" for $price VPC coins?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: price == 0 ? Colors.teal : AppColors.primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: price == 0 ? Colors.teal : AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
               Get.back();
               try {
                 final response = await _authController.apiService.post(
                   '${ApiConstants.baseUrl}/purchase-item.php',
-                  data: {
-                    'user_id': userId,
-                    'item_id': item['id'],
-                  },
+                  data: {'item_id': itemId},
                 );
 
                 if (response.data['success'] == true) {
-                  _ownedItemIds.add(item['id']);
+                  if (!_ownedItemIds.contains(itemId)) {
+                    _ownedItemIds.add(itemId);
+                  }
                   // Update current user coins in AuthController
                   if (response.data['remaining_coins'] != null) {
                     final updatedUser = _authController.currentUser.value;
                     if (updatedUser != null) {
-                      _authController.currentUser.value = updatedUser.copyWith(
-                        coins: response.data['remaining_coins'],
+                      await _authController.updateCachedUser(
+                        updatedUser.copyWith(
+                          coins: int.parse(
+                            response.data['remaining_coins'].toString(),
+                          ),
+                        ),
                       );
                     }
                   }
-                  Get.snackbar('Acquired! 🎉', 'You got ${item['name']}. Equipping now...', snackPosition: SnackPosition.BOTTOM);
-                  _equipItem(item['id'], item['type']);
+                  Get.snackbar(
+                    'Acquired! 🎉',
+                    'You got ${item['name']}. Equipping now...',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                  await _equipItem(itemId, item['type']);
                 } else {
-                  Get.snackbar('Error', response.data['message'] ?? 'Purchase failed', snackPosition: SnackPosition.BOTTOM);
+                  Get.snackbar(
+                    'Error',
+                    response.data['message'] ?? 'Purchase failed',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
                 }
               } catch (e) {
                 print('Error purchasing item: $e');
-                Get.snackbar('Error', 'Failed to complete purchase', snackPosition: SnackPosition.BOTTOM);
+                Get.snackbar(
+                  'Purchase failed',
+                  e.toString().replaceFirst('Exception: ', ''),
+                  snackPosition: SnackPosition.BOTTOM,
+                );
               }
             },
             child: Text(price == 0 ? 'Claim Now' : 'Confirm Purchase'),
@@ -136,18 +182,14 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
-  void _equipItem(int itemId, String type) async {
+  Future<void> _equipItem(int itemId, String type) async {
     final userId = _authController.currentUser.value?.id;
     if (userId == null) return;
 
     try {
       final response = await _authController.apiService.post(
         '${ApiConstants.baseUrl}/equip-item.php',
-        data: {
-          'user_id': userId,
-          'item_id': itemId,
-          'type': type,
-        },
+        data: {'item_id': itemId, 'type': type},
       );
 
       if (response.data['success'] == true) {
@@ -155,42 +197,66 @@ class _StoreScreenState extends State<StoreScreen> {
         if (currentUser != null) {
           if (type == 'profile_frame') {
             _activeFrameId.value = itemId;
-            _authController.currentUser.value = currentUser.copyWith(
-              activeProfileFrameId: itemId,
+            await _authController.updateCachedUser(
+              currentUser.copyWith(
+                activeProfileFrameId: itemId,
+                activeProfileFrameCode: response.data['frame_code']?.toString(),
+              ),
             );
           } else if (type == 'avatar') {
             final photo = response.data['profile_photo'];
             if (photo != null) {
-              _authController.currentUser.value = currentUser.copyWith(
-                profilePhoto: photo,
+              _activeAvatarId.value = itemId;
+              await _authController.updateCachedUser(
+                currentUser.copyWith(profilePhoto: photo),
               );
             }
-          } else if (type == 'party_frame') {
-            _authController.currentUser.value = currentUser.copyWith(
-              activePartyFrameId: itemId,
-            );
           }
         }
-        Get.snackbar('Equipped! ⚡', 'Item equipped successfully', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          'Equipped! ⚡',
+          'Item equipped successfully',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          response.data['message'] ?? 'Could not equip this item',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     } catch (e) {
       print('Error equipping item: $e');
+      Get.snackbar(
+        'Could not equip item',
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          title: const Text('Item Store 🛍️', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Item Store 🛍️',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: AppColors.textPrimary,
+            ),
             onPressed: () => Get.back(),
           ),
           bottom: const TabBar(
@@ -199,7 +265,6 @@ class _StoreScreenState extends State<StoreScreen> {
             indicatorColor: AppColors.primary,
             tabs: [
               Tab(text: 'Frames 🖼️'),
-              Tab(text: 'Party 👑'),
               Tab(text: 'Avatars 👤'),
             ],
           ),
@@ -215,20 +280,31 @@ class _StoreScreenState extends State<StoreScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.monetization_on, color: Colors.amber, size: 24),
+                      const VpcCoinIcon(size: 24),
                       const SizedBox(width: 8),
-                      Obx(() => Text(
-                        '${_authController.currentUser.value?.coins ?? 0} VPC Coins',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
-                      )),
+                      Obx(
+                        () => Text(
+                          '${_authController.currentUser.value?.coins ?? 0} VPC Coins',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                     ),
                     onPressed: () => Get.to(() => const CoinShopScreen()),
                     icon: const Icon(Icons.add_shopping_cart, size: 16),
@@ -243,13 +319,14 @@ class _StoreScreenState extends State<StoreScreen> {
             Expanded(
               child: Obx(() {
                 if (_isLoading.value && _items.isEmpty) {
-                  return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  );
                 }
 
                 return TabBarView(
                   children: [
                     _buildItemCategoryGrid('profile_frame'),
-                    _buildItemCategoryGrid('party_frame'),
                     _buildItemCategoryGrid('avatar'),
                   ],
                 );
@@ -269,9 +346,19 @@ class _StoreScreenState extends State<StoreScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Icon(Icons.storefront_outlined, size: 60, color: AppColors.textLight),
+            Icon(
+              Icons.storefront_outlined,
+              size: 60,
+              color: AppColors.textLight,
+            ),
             SizedBox(height: 12),
-            Text('No items in this category yet', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+            Text(
+              'No items in this category yet',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       );
@@ -288,95 +375,152 @@ class _StoreScreenState extends State<StoreScreen> {
       ),
       itemBuilder: (context, index) {
         final item = filtered[index];
-        final isOwned = _ownedItemIds.contains(item['id']);
-        final isEquipped = _activeFrameId.value == item['id'];
-        final price = item['price_coins'] ?? 0;
+        final itemId = int.parse(item['id'].toString());
+        return Obx(() {
+          final isOwned = _ownedItemIds.contains(itemId);
+          final isEquipped = switch (categoryType) {
+            'profile_frame' => _activeFrameId.value == itemId,
+            'avatar' => _activeAvatarId.value == itemId,
+            _ => false,
+          };
+          final price =
+              int.tryParse(item['price_coins']?.toString() ?? '') ?? 0;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isEquipped ? AppColors.primary : (isOwned ? Colors.green.shade300 : AppColors.border),
-              width: isEquipped ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 8),
-              // Item Preview
-              _buildItemPreview(item),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  item['name'] ?? 'Item',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isEquipped
+                    ? AppColors.primary
+                    : (isOwned ? Colors.green.shade300 : AppColors.border),
+                width: isEquipped ? 2 : 1,
               ),
-              const SizedBox(height: 4),
-              // Price / Free Tag
-              if (price == 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 8),
+                // Item Preview
+                _buildItemPreview(item),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
-                    'FREE 🎉',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                    item['name'] ?? 'Item',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                )
-              else
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.monetization_on, color: Colors.amber, size: 14),
-                    const SizedBox(width: 4),
-                    Text('$price VPC', style: const TextStyle(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.w600)),
-                  ],
                 ),
-              const SizedBox(height: 10),
-              if (isEquipped)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(14)),
-                  child: const Text('Equipped ⚡', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                )
-              else if (isOwned)
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                const SizedBox(height: 4),
+                // Price / Free Tag
+                if (price == 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: Text(
+                      'FREE 🎉',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  )
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const VpcCoinIcon(size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$price VPC',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: () => _equipItem(item['id'], item['type']),
-                  child: const Text('Equip ⚡'),
-                )
-              else
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: price == 0 ? Colors.teal : AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                const SizedBox(height: 10),
+                if (isEquipped)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text(
+                      'Equipped ⚡',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                else if (isOwned)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                    ),
+                    onPressed: () => _equipItem(itemId, item['type']),
+                    child: const Text('Equip ⚡'),
+                  )
+                else
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: price == 0
+                          ? Colors.teal
+                          : AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                    ),
+                    onPressed: () => _purchaseItem(item),
+                    child: Text(price == 0 ? 'Get Free' : 'Buy'),
                   ),
-                  onPressed: () => _purchaseItem(item),
-                  child: Text(price == 0 ? 'Get Free' : 'Buy'),
-                ),
-            ],
-          ),
-        );
+              ],
+            ),
+          );
+        });
       },
     );
   }
@@ -394,7 +538,7 @@ class _StoreScreenState extends State<StoreScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withValues(alpha: 0.15),
               blurRadius: 8,
               spreadRadius: 1,
             ),
@@ -405,52 +549,35 @@ class _StoreScreenState extends State<StoreScreen> {
               ? Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     color: Colors.purple.shade100,
-                    child: const Icon(Icons.person, size: 36, color: AppColors.primary),
+                    child: const Icon(
+                      Icons.person,
+                      size: 36,
+                      color: AppColors.primary,
+                    ),
                   ),
                 )
               : Container(
                   color: Colors.purple.shade100,
-                  child: const Icon(Icons.person, size: 36, color: AppColors.primary),
+                  child: const Icon(
+                    Icons.person,
+                    size: 36,
+                    color: AppColors.primary,
+                  ),
                 ),
         ),
       );
     } else if (type == 'profile_frame') {
-      List<Color> gradientColors;
-      Widget? badgeIcon;
-
-      switch (imageUrl) {
-        case 'frame_blue':
-          gradientColors = [Colors.blue.shade400, Colors.cyanAccent];
-          break;
-        case 'frame_emerald':
-          gradientColors = [Colors.teal, Colors.greenAccent];
-          break;
-        case 'frame_neon':
-          gradientColors = [Colors.purple, Colors.pink, Colors.cyan];
-          break;
-        case 'frame_gold':
-          gradientColors = [Colors.amber.shade700, Colors.yellow, Colors.amber.shade300];
-          badgeIcon = const Positioned(top: -4, child: Text('👑', style: TextStyle(fontSize: 14)));
-          break;
-        case 'frame_flame':
-          gradientColors = [Colors.deepOrange, Colors.orange, Colors.red];
-          badgeIcon = const Positioned(bottom: -2, child: Text('🔥', style: TextStyle(fontSize: 14)));
-          break;
-        case 'frame_galaxy':
-          gradientColors = [Colors.indigo, Colors.purple, Colors.pinkAccent];
-          badgeIcon = const Positioned(top: -4, child: Text('✨', style: TextStyle(fontSize: 14)));
-          break;
-        case 'frame_dragon':
-          gradientColors = [Colors.red.shade900, Colors.purple.shade800, Colors.black];
-          badgeIcon = const Positioned(bottom: -2, child: Text('🐉', style: TextStyle(fontSize: 14)));
-          break;
-        case 'frame_white':
-        default:
-          gradientColors = [Colors.grey.shade400, Colors.grey.shade200];
-          break;
-      }
+      final style = ProfileFrameStyle.fromCode(imageUrl);
+      final gradientColors = style.colors;
+      final badgeIcon = style.badge == null
+          ? null
+          : Positioned(
+              top: style.badgeAtTop ? -4 : null,
+              bottom: style.badgeAtTop ? null : -2,
+              child: Text(style.badge!, style: const TextStyle(fontSize: 14)),
+            );
 
       return SizedBox(
         width: 76,
@@ -472,10 +599,10 @@ class _StoreScreenState extends State<StoreScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: gradientColors.first.withOpacity(0.4),
+                    color: gradientColors.first.withValues(alpha: 0.4),
                     blurRadius: 8,
                     spreadRadius: 1,
-                  )
+                  ),
                 ],
               ),
               child: Container(
@@ -486,12 +613,24 @@ class _StoreScreenState extends State<StoreScreen> {
                 padding: const EdgeInsets.all(2),
                 child: ClipOval(
                   child: (userPhoto != null && userPhoto.isNotEmpty)
-                      ? Image.network(userPhoto, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 32, color: Colors.grey))
-                      : const Icon(Icons.person, size: 32, color: AppColors.primary),
+                      ? Image.network(
+                          userPhoto,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const Icon(
+                            Icons.person,
+                            size: 32,
+                            color: Colors.grey,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.person,
+                          size: 32,
+                          color: AppColors.primary,
+                        ),
                 ),
               ),
             ),
-            if (badgeIcon != null) badgeIcon,
+            ?badgeIcon,
           ],
         ),
       );
@@ -536,7 +675,11 @@ class _StoreScreenState extends State<StoreScreen> {
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(colors: frameGradient),
           boxShadow: [
-            BoxShadow(color: frameGradient.first.withOpacity(0.3), blurRadius: 8, spreadRadius: 1),
+            BoxShadow(
+              color: frameGradient.first.withValues(alpha: 0.3),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
           ],
         ),
         child: Container(
@@ -551,7 +694,11 @@ class _StoreScreenState extends State<StoreScreen> {
               const SizedBox(height: 2),
               Text(
                 'PARTY ROOM',
-                style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: frameGradient.first),
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  color: frameGradient.first,
+                ),
               ),
             ],
           ),

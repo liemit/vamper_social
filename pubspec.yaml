@@ -46,6 +46,10 @@ dependencies:
   
   # HTTP requests
   dio: ^5.4.0
+  crypto: ^3.0.7
+
+  # Google Play Billing
+  in_app_purchase: ^3.2.3
   
   # Local storage
   shared_preferences: ^2.2.2
@@ -68,6 +72,9 @@ dependencies:
 
   # Utilities
   url_launcher: ^6.3.1
+  livekit_client: ^2.13.2
+  flutter_background: ^1.3.1
+  flutter_webrtc: ^1.6.3
 
 dev_dependencies:
   flutter_test:

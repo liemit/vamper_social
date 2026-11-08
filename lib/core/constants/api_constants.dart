@@ -1,40 +1,48 @@
-import 'package:flutter/foundation.dart';
-
 class ApiConstants {
   // Base URL cho Server PHP trên ổ D (Laragon) qua tên miền riêng vamper.xyz
   static String get baseUrl {
     // Luôn sử dụng tên miền công cộng vamper.xyz cho cả Web Debug lẫn Máy thật / Emulator
     return 'https://vamper.xyz/vamper_api/api';
   }
-  
+
   // Public URL cho Web Portal (Admin)
-  static String get webAdminUrl => 'https://vamper.xyz/vamper_api/admin.php'; 
-  
+  static String get webAdminUrl => 'https://vamper.xyz/vamper_api/admin.php';
+
   // Endpoints - Sử dụng đuôi .php cho backend PHP thuần
   static String get test => '$baseUrl/test.php';
   static String get register => '$baseUrl/register.php';
   // Auth & Social
   static String get login => '$baseUrl/login.php';
+  static String get logout => '$baseUrl/logout.php';
   static String get socialLogin => '$baseUrl/social-login.php';
   static String get sendOtp => '$baseUrl/send-otp.php';
   static String get verifyOtp => '$baseUrl/verify-otp.php';
+  static String get requestPasswordReset =>
+      '$baseUrl/request-password-reset.php';
+  static String get resetPassword => '$baseUrl/reset-password.php';
   static String get getProfile => '$baseUrl/get-profile.php';
   static String get updateProfile => '$baseUrl/update-profile.php';
+  static String get changePassword => '$baseUrl/change-password.php';
+  static String get verifyGooglePlayPurchase =>
+      '$baseUrl/verify-google-play-purchase.php';
+  static String get getUserSettings => '$baseUrl/get-user-settings.php';
+  static String get updateUserSettings => '$baseUrl/update-user-settings.php';
   static String get uploadProfileFolder => '$baseUrl/upload-photo.php';
   static String get uploadProfilePhoto => '$baseUrl/upload-photo.php';
   static String get getUserPhotos => '$baseUrl/get-user-photos.php';
-  
+
   // Posts
   static String get getPosts => '$baseUrl/get-posts.php';
   static String get createPost => '$baseUrl/create-post.php';
   static String get likePost => '$baseUrl/like-post.php';
   static String get deletePost => '$baseUrl/delete-post.php';
   static String get updatePost => '$baseUrl/update-post.php';
-  
+
   // Comments
   static String get getComments => '$baseUrl/get-comments.php';
   static String get addComment => '$baseUrl/add-comment.php';
-  static String get commentInteraction => '$baseUrl/toggle-comment-interaction.php';
+  static String get commentInteraction =>
+      '$baseUrl/toggle-comment-interaction.php';
 
   // Global Search
   static String get searchGlobal => '$baseUrl/search-global.php';
@@ -43,16 +51,22 @@ class ApiConstants {
   static String get getConversations => '$baseUrl/get-conversations.php';
   static String get getMessages => '$baseUrl/get-messages.php';
   static String get sendMessage => '$baseUrl/send-message.php';
+  static String get getGifts => '$baseUrl/get-gifts.php';
+  static String get sendGift => '$baseUrl/send-gift.php';
+  static String get myGiftCollection => '$baseUrl/get-my-gifts.php';
+  static String get voiceMatchSession => '$baseUrl/voice-match-session.php';
+  static String get chatCall => '$baseUrl/chat-call.php';
 
   // Headers
   static const Map<String, String> headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
-  
+
   // Storage keys
   static const String keyToken = 'auth_token';
   static const String keyUserId = 'user_id';
   static const String keyUserData = 'user_data';
   static const String keyIsLoggedIn = 'is_logged_in';
+  static const String keyUserSettings = 'user_settings';
 }

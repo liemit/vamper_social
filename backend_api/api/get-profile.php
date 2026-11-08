@@ -5,6 +5,13 @@ require_once '../config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
+    $columnStmt = $db->query("SHOW COLUMNS FROM users LIKE " . $db->quote($column));
+    if ($columnStmt->rowCount() === 0) {
+        $db->exec("ALTER TABLE users ADD COLUMN `$column` INT NULL");
+    }
+}
+
 // Get user_id and optional viewer_id
 $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $viewer_id = isset($_GET['viewer_id']) ? $_GET['viewer_id'] : (isset($_GET['current_user_id']) ? $_GET['current_user_id'] : null);
@@ -39,10 +46,52 @@ if (!empty($viewer_id) && $viewer_id != $user_id) {
 }
 
 try {
+    $db->exec("CREATE TABLE IF NOT EXISTS user_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        setting_key VARCHAR(100) NOT NULL,
+        setting_value JSON NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_setting (user_id, setting_key),
+        KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $settingsStmt = $db->prepare("SELECT setting_key, setting_value FROM user_settings WHERE user_id = :user_id");
+    $settingsStmt->execute([':user_id' => $user_id]);
+    $settings = [];
+    while ($row = $settingsStmt->fetch(PDO::FETCH_ASSOC)) {
+        $settings[$row['setting_key']] = json_decode($row['setting_value'], true);
+    }
+
+    $isPrivateProfile = !empty($settings['settings_private_profile']) && (bool)$settings['settings_private_profile'];
+    $isSelfProfile = !empty($viewer_id) && (int)$viewer_id === (int)$user_id;
+
+    if ($isPrivateProfile && !$isSelfProfile && !empty($viewer_id)) {
+        http_response_code(403);
+        echo json_encode([
+            "success" => false,
+            "message" => "This profile is private.",
+            "private_profile" => true
+        ]);
+        exit;
+    }
+
     // Fetch public user data
-    $query = "SELECT id, full_name, profile_photo, gender, date_of_birth, bio, location, is_verified, coins, created_at, active_profile_frame_id, active_party_frame_id
-              FROM users
-              WHERE id = :id LIMIT 1";
+    $query = "SELECT u.id, u.full_name, u.profile_photo, u.gender, u.date_of_birth, u.bio,
+                     u.location, u.is_verified, u.coins, u.created_at,
+                     u.active_profile_frame_id, u.active_party_frame_id,
+                     profile_frame.image_url AS active_profile_frame_code,
+                     party_frame.image_url AS active_party_frame_code,
+                     COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(s.setting_value, '$')) AS UNSIGNED), 1) AS show_online_status
+              FROM users u
+              LEFT JOIN shop_items profile_frame
+                ON profile_frame.id = u.active_profile_frame_id AND profile_frame.type = 'profile_frame'
+              LEFT JOIN shop_items party_frame
+                ON party_frame.id = u.active_party_frame_id AND party_frame.type = 'party_frame'
+              LEFT JOIN user_settings s
+                ON s.user_id = u.id AND s.setting_key = 'settings_show_online_status'
+              WHERE u.id = :id LIMIT 1";
 
     $stmt = $db->prepare($query);
     $stmt->bindParam(":id", $user_id);
@@ -51,6 +100,9 @@ try {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
+        $user['is_private_profile'] = $isPrivateProfile;
+        $user['show_online_status'] = (isset($user['show_online_status']) ? (int)$user['show_online_status'] : 1) === 1;
+
         http_response_code(200);
         echo json_encode([
             "success" => true,

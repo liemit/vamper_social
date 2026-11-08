@@ -1,6 +1,7 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -117,7 +118,7 @@ try {
     if (!isset($user['is_verified']))    $user['is_verified'] = 1;
 
     // Generate token
-    $token = base64_encode($user['id'] . ':' . time());
+    $token = issueApiToken($db, (int)$user['id']);
 
     http_response_code(200);
     echo json_encode([

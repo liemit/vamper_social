@@ -13,20 +13,26 @@ class Database {
 
     public function getConnection() {
         $this->conn = null;
+        $host = getenv("VAMPER_DB_HOST") ?: $this->host;
+        $dbName = getenv("VAMPER_DB_NAME") ?: $this->db_name;
+        $username = getenv("VAMPER_DB_USER") ?: $this->username;
+        $password = getenv("VAMPER_DB_PASSWORD") ?: $this->password;
 
         try {
             $this->conn = new PDO(
-                "mysql:host=" . $this->host . ";dbname=" . $this->db_name,
-                $this->username,
-                $this->password
+                "mysql:host=" . $host . ";dbname=" . $dbName . ";charset=utf8mb4",
+                $username,
+                $password,
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
             $this->conn->exec("set names utf8mb4");
             $this->conn->exec("SET time_zone = '+07:00'"); // ⚠️ Bắt buộc: Múi giờ Việt Nam - đồng bộ PHP / MySQL 100%
-            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         } catch(PDOException $exception) {
+            error_log("Database connection error: " . $exception->getMessage());
+            http_response_code(500);
             echo json_encode([
                 "success" => false,
-                "message" => "Connection error: " . $exception->getMessage()
+                "message" => "Database service is unavailable."
             ]);
             exit();
         }

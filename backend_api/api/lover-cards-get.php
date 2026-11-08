@@ -58,8 +58,12 @@ try {
         $params[':user_location'] = $user_location;
     }
 
-    $query = "SELECT id, full_name, email, profile_photo, gender, date_of_birth, bio, location, is_verified
-              FROM users
+    $query = "SELECT u.id, u.full_name, u.email, u.profile_photo, u.gender, u.date_of_birth,
+                     u.bio, u.location, u.is_verified,
+                     frame.image_url AS active_profile_frame_code
+              FROM users u
+              LEFT JOIN shop_items frame
+                ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
               WHERE id != :user_id
               AND is_active = 1
               $location_clause
@@ -79,8 +83,12 @@ try {
 
     // Fallback to global if no candidates in region
     if ($stmt->rowCount() == 0) {
-        $queryGlobal = "SELECT id, full_name, email, profile_photo, gender, date_of_birth, bio, location, is_verified
-                        FROM users
+        $queryGlobal = "SELECT u.id, u.full_name, u.email, u.profile_photo, u.gender, u.date_of_birth,
+                               u.bio, u.location, u.is_verified,
+                               frame.image_url AS active_profile_frame_code
+                        FROM users u
+                        LEFT JOIN shop_items frame
+                          ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
                         WHERE id != :user_id
                         AND is_active = 1
                         $gender_clause

@@ -1,38 +1,45 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
+require_once __DIR__ . '/../libs/AdminTools.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
-$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+$user_id = authenticateApiUser($db);
 
 try {
-    // Ensure tables exist
-    $db->exec("CREATE TABLE IF NOT EXISTS shop_items (
+    if (!adminTableExists($db, 'shop_items')) {
+        $db->exec("CREATE TABLE IF NOT EXISTS shop_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         type ENUM('avatar','profile_frame','party_frame') NOT NULL,
         image_url VARCHAR(255) NOT NULL,
         price_coins INT NOT NULL DEFAULT 100,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    }
 
-    $db->exec("CREATE TABLE IF NOT EXISTS user_items (
+    if (!adminTableExists($db, 'user_items')) {
+        $db->exec("CREATE TABLE IF NOT EXISTS user_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         item_id INT NOT NULL,
         purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY unique_user_item (user_id, item_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    }
+    ensureShopActiveColumn($db);
 
-    // Ensure columns in users and parties
-    try {
-        $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS active_profile_frame_id INT NULL;");
-        $db->exec("ALTER TABLE parties ADD COLUMN IF NOT EXISTS active_frame_id INT NULL;");
-    } catch (Exception $e) {}
+    // Ensure the selected cosmetics can be persisted for each user.
+    foreach (['active_profile_frame_id', 'active_party_frame_id'] as $column) {
+        if (!adminColumnExists($db, 'users', $column)) {
+            $db->exec("ALTER TABLE users ADD COLUMN `$column` INT NULL");
+        }
+    }
 
-    // Auto-seed shop_items if empty
+    // Install the original catalog for fresh databases.
     $countStmt = $db->query("SELECT COUNT(*) FROM shop_items");
     if ($countStmt->fetchColumn() == 0) {
         $seedQuery = "INSERT INTO shop_items (name, type, image_url, price_coins) VALUES
@@ -45,13 +52,6 @@ try {
         ('Khung Cổng Vũ Trụ Vamper', 'profile_frame', 'frame_galaxy', 750),
         ('Khung Rồng Đêm Huyền Thoại', 'profile_frame', 'frame_dragon', 1200),
 
-        ('Khung Khán Phòng Cơ Bản', 'party_frame', 'party_simple', 0),
-        ('Khung Tiệc Hồng Ngọt Ngào', 'party_frame', 'party_pink', 0),
-        ('Khung Tiệc Hoàng Gia VIP', 'party_frame', 'party_royal', 250),
-        ('Khung Sàn Disco Cyberpunk', 'party_frame', 'party_disco', 450),
-        ('Khung Vũ Trường Nightclub', 'party_frame', 'party_club', 700),
-        ('Khung Cung Điện Kim Cương', 'party_frame', 'party_palace', 1000),
-
         ('Avatar Nam Trẻ Trung', 'avatar', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200', 0),
         ('Avatar Nữ Anime Dễ Thương', 'avatar', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200', 0),
         ('Avatar Gamer Neon Boy', 'avatar', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200', 0),
@@ -63,12 +63,101 @@ try {
         $db->exec($seedQuery);
     }
 
+    // Add new cosmetics to existing installations without replacing user-owned items.
+    $newItems = [
+        ['profile_frame', 'Khung Hoa Hồng Pha Lê', 'frame_rose', 180],
+        ['profile_frame', 'Khung Băng Giá Bắc Cực', 'frame_ice', 220],
+        ['profile_frame', 'Khung Sakura Mộng Mơ', 'frame_sakura', 280],
+        ['profile_frame', 'Khung Đại Dương Sâu Thẳm', 'frame_ocean', 350],
+        ['profile_frame', 'Khung Hoàng Hôn Rực Rỡ', 'frame_sunset', 420],
+        ['profile_frame', 'Khung Khu Rừng Cổ Tích', 'frame_mint', 480],
+        ['profile_frame', 'Khung Obsidian Huyền Bí', 'frame_obsidian', 650],
+        ['profile_frame', 'Khung Hologram Ánh Ngọc', 'frame_holo', 800],
+        ['profile_frame', 'Khung Cầu Vồng Vũ Trụ', 'frame_rainbow', 950],
+        ['profile_frame', 'Khung Nhật Thực Hoàng Kim', 'frame_solar', 1200],
+        [
+            'avatar',
+            'Avatar Nhà Du Hành Mộng Mơ',
+            'https://api.dicebear.com/9.x/adventurer/png?seed=vamper-dreamer&backgroundColor=b6e3f4,c0aede,d1d4f9',
+            120,
+        ],
+        [
+            'avatar',
+            'Avatar Nàng Thơ Dịu Dàng',
+            'https://api.dicebear.com/9.x/lorelei/png?seed=vamper-lorelei&backgroundColor=ffd5dc,ffdfbf,c0aede',
+            180,
+        ],
+        [
+            'avatar',
+            'Avatar Chú Mèo Tinh Nghịch',
+            'https://api.dicebear.com/9.x/fun-emoji/png?seed=vamper-cat&backgroundColor=ffdfbf,b6e3f4,c0aede',
+            220,
+        ],
+        [
+            'avatar',
+            'Avatar Chiến Binh Neon',
+            'https://api.dicebear.com/9.x/bottts/png?seed=vamper-neon-warrior&backgroundColor=c0aede,d1d4f9,b6e3f4',
+            300,
+        ],
+        [
+            'avatar',
+            'Avatar Tiểu Tiên Rừng Xanh',
+            'https://api.dicebear.com/9.x/adventurer/png?seed=vamper-forest-fairy&backgroundColor=b6e3f4,c0aede,d1d4f9',
+            380,
+        ],
+        [
+            'avatar',
+            'Avatar Hoàng Tử Bóng Đêm',
+            'https://api.dicebear.com/9.x/notionists/png?seed=vamper-night-prince&backgroundColor=1b1b3a,693668,94618e',
+            500,
+        ],
+        [
+            'avatar',
+            'Avatar Nữ Hoàng Ánh Trăng',
+            'https://api.dicebear.com/9.x/lorelei/png?seed=vamper-moon-queen&backgroundColor=1b1b3a,693668,94618e',
+            700,
+        ],
+        [
+            'avatar',
+            'Avatar Rồng Con Huyền Thoại',
+            'https://api.dicebear.com/9.x/bottts/png?seed=vamper-legendary-dragon&backgroundColor=ffdfbf,ffd5dc,c0aede',
+            900,
+        ],
+    ];
+    $insertItem = $db->prepare(
+        'INSERT INTO shop_items (name, type, image_url, price_coins)
+         SELECT :name, :type, :image_url, :price
+         WHERE NOT EXISTS (
+             SELECT 1 FROM shop_items
+             WHERE type = :existing_type AND image_url = :existing_image
+         )'
+    );
+    foreach ($newItems as [$type, $name, $imageUrl, $price]) {
+        $insertItem->execute([
+            ':name' => $name,
+            ':type' => $type,
+            ':image_url' => $imageUrl,
+            ':price' => $price,
+            ':existing_type' => $type,
+            ':existing_image' => $imageUrl,
+        ]);
+    }
+
     // Fetch shop items
-    $stmt = $db->query("SELECT id, name, type, image_url, price_coins FROM shop_items ORDER BY price_coins ASC");
+    $stmt = $db->query(
+        "SELECT id, name, type, image_url, price_coins
+         FROM shop_items
+         WHERE type IN ('profile_frame', 'avatar') AND is_active = 1
+         ORDER BY price_coins ASC"
+    );
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $owned_item_ids = [];
     $active_profile_frame = null;
+    $active_party_frame = null;
+    $active_profile_frame_code = null;
+    $active_party_frame_code = null;
+    $active_avatar_item = null;
 
     if (!empty($user_id)) {
         // Fetch owned items
@@ -77,9 +166,28 @@ try {
         $owned_item_ids = $oStmt->fetchAll(PDO::FETCH_COLUMN);
 
         // Fetch active equipped frame
-        $uStmt = $db->prepare("SELECT active_profile_frame_id FROM users WHERE id = :uid LIMIT 1");
+        $uStmt = $db->prepare(
+            "SELECT u.active_profile_frame_id, u.active_party_frame_id,
+                    profile_frame.image_url AS active_profile_frame_code,
+                    party_frame.image_url AS active_party_frame_code,
+                    avatar.id AS active_avatar_item_id
+             FROM users u
+             LEFT JOIN shop_items profile_frame
+               ON profile_frame.id = u.active_profile_frame_id AND profile_frame.type = 'profile_frame'
+             LEFT JOIN shop_items party_frame
+               ON party_frame.id = u.active_party_frame_id AND party_frame.type = 'party_frame'
+             LEFT JOIN shop_items avatar ON avatar.type = 'avatar' AND avatar.image_url = u.profile_photo
+             WHERE u.id = :uid LIMIT 1"
+        );
         $uStmt->execute([':uid' => $user_id]);
-        $active_profile_frame = $uStmt->fetchColumn();
+        $activeUser = $uStmt->fetch(PDO::FETCH_ASSOC);
+        if ($activeUser) {
+            $active_profile_frame = $activeUser['active_profile_frame_id'];
+            $active_party_frame = $activeUser['active_party_frame_id'];
+            $active_profile_frame_code = $activeUser['active_profile_frame_code'];
+            $active_party_frame_code = $activeUser['active_party_frame_code'];
+            $active_avatar_item = $activeUser['active_avatar_item_id'];
+        }
     }
 
     http_response_code(200);
@@ -87,7 +195,11 @@ try {
         "success" => true,
         "items" => $items,
         "owned_item_ids" => array_map('intval', $owned_item_ids),
-        "active_profile_frame_id" => $active_profile_frame ? (int)$active_profile_frame : null
+        "active_profile_frame_id" => $active_profile_frame ? (int)$active_profile_frame : null,
+        "active_party_frame_id" => $active_party_frame ? (int)$active_party_frame : null,
+        "active_profile_frame_code" => $active_profile_frame_code,
+        "active_party_frame_code" => $active_party_frame_code,
+        "active_avatar_item_id" => $active_avatar_item ? (int)$active_avatar_item : null
     ]);
 
 } catch (PDOException $e) {
