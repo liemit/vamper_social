@@ -175,7 +175,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.block, color: Colors.redAccent),
-                  tooltip: 'Block User',
+                   tooltip: 'Block User',
                   onPressed: _blockUser,
                 ),
               ),
@@ -377,12 +377,12 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
                           'Moments',
                           style: TextStyle(
                             fontSize: 20,
@@ -390,19 +390,24 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        if (_userPosts.isEmpty)
-                          _buildEmptyPlaceholder('No moments shared yet.')
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _userPosts.length,
-                            itemBuilder: (context, index) =>
-                                PostCard(post: _userPosts[index]),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_userPosts.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _buildEmptyPlaceholder(
+                            'No moments shared yet.',
                           ),
-                      ],
-                    ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _userPosts.length,
+                          itemBuilder: (context, index) =>
+                              PostCard(post: _userPosts[index]),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 120),
                 ],

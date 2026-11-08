@@ -56,7 +56,10 @@ class MessageModel {
       gift: gift,
       alreadyProcessed:
           json['already_processed'] == true || json['already_processed'] == 1,
-      isRead: json['is_read'] == 1 || json['is_read'] == true,
+      isRead:
+          json['is_read'] == true ||
+          json['is_read'] == 1 ||
+          json['is_read']?.toString() == '1',
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
   }

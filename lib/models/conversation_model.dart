@@ -7,6 +7,7 @@ class ConversationModel {
   final String partnerGender;
   final int partnerAge;
   final bool partnerVerified;
+  final bool partnerIsOnline;
   final String lastMessage;
   final int unreadCount;
   final DateTime updatedAt;
@@ -20,6 +21,7 @@ class ConversationModel {
     required this.partnerGender,
     required this.partnerAge,
     required this.partnerVerified,
+    this.partnerIsOnline = false,
     required this.lastMessage,
     required this.unreadCount,
     required this.updatedAt,
@@ -36,6 +38,10 @@ class ConversationModel {
       partnerAge: int.parse((json['partner_age'] ?? 20).toString()),
       partnerVerified:
           json['partner_verified'] == true || json['partner_verified'] == 1,
+      partnerIsOnline:
+          json['partner_is_online'] == true ||
+          json['partner_is_online'] == 1 ||
+          json['partner_is_online']?.toString() == '1',
       lastMessage: json['last_message'] ?? '',
       unreadCount: int.parse((json['unread_count'] ?? 0).toString()),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),

@@ -93,6 +93,19 @@ In chat, the sender sees a gift celebration immediately after the gift API
 confirms delivery. The recipient sees the matching celebration when message
 polling detects the new gift; visual tiers scale with catalog coin value.
 
+## Chat delivery and presence
+
+The authenticated `chat-presence.php` endpoint records app heartbeats and
+explicit offline transitions in the additive `user_presence` table, created on
+first use. Flutter sends heartbeats while the app is foregrounded and marks the
+user offline when it is backgrounded. A user is considered online only if the
+last heartbeat is under 45 seconds old and their `settings_show_online_status`
+setting is enabled; stale sessions therefore expire without a database reset.
+
+Opening a conversation marks its incoming messages as read before returning
+them. The sender's chat polling then receives the updated `is_read` state, which
+drives the sent/seen check mark shown on outgoing messages.
+
 ## Voice Match calls
 
 Voice Match matchmaking uses the authenticated `voice-match-session.php`

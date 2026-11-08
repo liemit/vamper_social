@@ -1,19 +1,17 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
+require_once __DIR__ . '/libs/ChatPresence.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
-$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
-
-if (empty($user_id)) {
-    http_response_code(400);
-    echo json_encode(["success" => false, "message" => "User ID is required."]);
-    exit();
-}
+$user_id = authenticateApiUser($db);
 
 try {
+    ensureChatPresenceTable($db);
+
     // Ensure conversations table exists
     $db->exec("CREATE TABLE IF NOT EXISTS conversations (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -23,6 +21,17 @@ try {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_conv (user1_id, user2_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS user_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        setting_key VARCHAR(100) NOT NULL,
+        setting_value JSON NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_setting (user_id, setting_key),
+        KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     // Ensure messages table exists
     $db->exec("CREATE TABLE IF NOT EXISTS messages (
@@ -57,10 +66,23 @@ try {
         // Fetch partner details
         $pStmt = $db->prepare(
             "SELECT u.id, u.full_name, u.profile_photo, u.gender, u.date_of_birth, u.is_verified,
-                    frame.image_url AS active_profile_frame_code
+                    frame.image_url AS active_profile_frame_code,
+                    CASE
+                        WHEN presence.is_active = 1
+                         AND presence.last_seen >= UTC_TIMESTAMP() - INTERVAL 45 SECOND
+                         AND COALESCE(
+                             CAST(JSON_UNQUOTE(JSON_EXTRACT(online_setting.setting_value, '$')) AS UNSIGNED),
+                             1
+                         ) = 1
+                        THEN 1 ELSE 0
+                    END AS partner_is_online
              FROM users u
              LEFT JOIN shop_items frame
                ON frame.id = u.active_profile_frame_id AND frame.type = 'profile_frame'
+             LEFT JOIN user_presence presence ON presence.user_id = u.id
+             LEFT JOIN user_settings online_setting
+               ON online_setting.user_id = u.id
+              AND online_setting.setting_key = 'settings_show_online_status'
              WHERE u.id = :pid LIMIT 1"
         );
         $pStmt->execute([':pid' => $partner_id]);
@@ -88,6 +110,7 @@ try {
                 "partner_gender" => $partner['gender'] ?? 'other',
                 "partner_age" => $age,
                 "partner_verified" => (int)$partner['is_verified'] === 1,
+                "partner_is_online" => (int)$partner['partner_is_online'] === 1,
                 "last_message" => $row['last_message'] ?? 'Matched! Say hi 👋',
                 "unread_count" => (int)$unread_count,
                 "updated_at" => $row['updated_at']

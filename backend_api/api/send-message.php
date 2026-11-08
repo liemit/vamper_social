@@ -1,9 +1,11 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
+$authenticatedUserId = authenticateApiUser($db);
 
 $is_multipart = isset($_FILES['image']) || isset($_FILES['video']) || isset($_FILES['media']);
 $sender_id = $is_multipart ? ($_POST['sender_id'] ?? null) : null;
@@ -24,6 +26,12 @@ if (!$is_multipart) {
 if (empty($sender_id) || empty($receiver_id)) {
     http_response_code(400);
     echo json_encode(["success" => false, "message" => "Sender ID and Receiver ID are required."]);
+    exit();
+}
+
+if ((int)$sender_id !== $authenticatedUserId) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "Sender does not match the authenticated user."]);
     exit();
 }
 
@@ -71,6 +79,23 @@ try {
             $insStmt->execute([':u1' => $u1, ':u2' => $u2]);
             $conversation_id = $db->lastInsertId();
         }
+    }
+
+    $conversationStmt = $db->prepare(
+        'SELECT COUNT(*) FROM conversations
+         WHERE id = :cid
+           AND ((user1_id = :sender AND user2_id = :receiver)
+             OR (user1_id = :receiver AND user2_id = :sender))'
+    );
+    $conversationStmt->execute([
+        ':cid' => $conversation_id,
+        ':sender' => (int)$sender_id,
+        ':receiver' => (int)$receiver_id,
+    ]);
+    if ((int)$conversationStmt->fetchColumn() === 0) {
+        http_response_code(403);
+        echo json_encode(["success" => false, "message" => "Conversation participants do not match."]);
+        exit();
     }
 
     $message_type = 'text';

@@ -22,10 +22,12 @@ class ChatController extends GetxController {
 
   Timer? _pollingTimer;
   Timer? _notificationTimer;
+  Timer? _conversationTimer;
   int? _activeConversationId;
   final Map<String, String> _pendingGiftRequestIds = {};
   final Set<int> _announcedGiftMessageIds = {};
   bool _isSendingGift = false;
+  bool _isFetchingConversations = false;
   bool _hasMessageBaseline = false;
   void Function(MessageModel gift)? onNewReceivedGift;
 
@@ -111,12 +113,17 @@ class ChatController extends GetxController {
     super.onInit();
     fetchConversations();
     startNotificationPolling();
+    _conversationTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => fetchConversations(),
+    );
   }
 
   @override
   void onClose() {
     _stopPolling();
     _notificationTimer?.cancel();
+    _conversationTimer?.cancel();
     super.onClose();
   }
 
@@ -162,14 +169,12 @@ class ChatController extends GetxController {
 
   Future<void> fetchConversations() async {
     final userId = _authController.currentUser.value?.id;
-    if (userId == null) return;
+    if (userId == null || _isFetchingConversations) return;
 
     try {
+      _isFetchingConversations = true;
       isLoadingConversations.value = true;
-      final response = await _apiService.get(
-        ApiConstants.getConversations,
-        params: {'user_id': userId},
-      );
+      final response = await _apiService.get(ApiConstants.getConversations);
 
       if (response.data['success'] == true) {
         final List data = response.data['data'] ?? [];
@@ -180,6 +185,7 @@ class ChatController extends GetxController {
     } catch (e) {
       print('Error fetching conversations: $e');
     } finally {
+      _isFetchingConversations = false;
       isLoadingConversations.value = false;
     }
   }
@@ -195,7 +201,7 @@ class ChatController extends GetxController {
     try {
       if (!isSilent) isLoadingMessages.value = true;
 
-      final Map<String, dynamic> params = {'user_id': userId};
+      final Map<String, dynamic> params = {};
       if (conversationId > 0) {
         params['conversation_id'] = conversationId;
       }

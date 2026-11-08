@@ -1228,12 +1228,25 @@ class _ChatScreenState extends State<ChatScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           timeStr,
-                          style: TextStyle(
-                            color: isMe ? Colors.white70 : AppColors.textLight,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
                             fontSize: 10,
                           ),
                         ),
                       ),
+                      if (isMe && msg.messageType != 'recalled') ...[
+                        const SizedBox(width: 4),
+                        Tooltip(
+                          message: msg.isRead ? 'Seen' : 'Sent',
+                          child: Icon(
+                            msg.isRead ? Icons.done_all : Icons.check,
+                            size: 14,
+                            color: msg.isRead
+                                ? const Color(0xFF7DDCFF)
+                                : Colors.white70,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

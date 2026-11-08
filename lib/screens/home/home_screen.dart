@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:get/get.dart';
@@ -18,6 +20,7 @@ import '../wallet/coin_shop_screen.dart';
 import '../discovery/search_screen.dart';
 import '../chat/conversations_screen.dart';
 import '../../controllers/chat_controller.dart';
+import '../../core/constants/api_constants.dart';
 import 'party_tab.dart';
 import '../wallet/store_screen.dart';
 import '../wallet/gift_collection_screen.dart';
@@ -31,9 +34,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isFabVisible = true;
+  bool _isUpdatingPresence = false;
+  bool _isAppResumed = true;
+  String? _pendingPresenceAction;
+  Timer? _presenceTimer;
   final AuthController _authController = Get.find<AuthController>();
   final DiscoveryController _discoveryController = Get.put(
     DiscoveryController(),
@@ -47,6 +54,68 @@ class _HomeScreenState extends State<HomeScreen> {
     const ConversationsScreen(),
     const ProfileTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_updatePresence('heartbeat'));
+    _presenceTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_isAppResumed) {
+        unawaited(_updatePresence('heartbeat'));
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _isAppResumed = true;
+      unawaited(_updatePresence('heartbeat'));
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _isAppResumed = false;
+      unawaited(_updatePresence('offline'));
+    }
+  }
+
+  Future<void> _updatePresence(String action) async {
+    if (_authController.currentUser.value?.id == null) {
+      return;
+    }
+
+    _pendingPresenceAction = action;
+    if (_isUpdatingPresence) return;
+
+    _isUpdatingPresence = true;
+    try {
+      while (_pendingPresenceAction != null) {
+        final nextAction = _pendingPresenceAction!;
+        _pendingPresenceAction = null;
+        await _authController.apiService.post(
+          ApiConstants.chatPresence,
+          data: {'action': nextAction},
+        );
+      }
+    } catch (error) {
+      debugPrint('Unable to update chat presence: $error');
+    } finally {
+      _isUpdatingPresence = false;
+      final pendingAction = _pendingPresenceAction;
+      if (pendingAction != null) {
+        unawaited(_updatePresence(pendingAction));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _presenceTimer?.cancel();
+    unawaited(_updatePresence('offline'));
+    super.dispose();
+  }
 
   void _showFilterSheet(BuildContext context) {
     _discoveryController.openFilters();

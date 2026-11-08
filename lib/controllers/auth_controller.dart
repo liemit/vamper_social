@@ -892,6 +892,15 @@ class AuthController extends GetxController {
 
   // Logout
   Future<void> logout() async {
+    try {
+      await apiService.post(
+        ApiConstants.chatPresence,
+        data: {'action': 'offline'},
+      );
+    } catch (error) {
+      debugPrint('Unable to mark chat presence offline during logout: $error');
+    }
+
     await _authService.logout();
     currentUser.value = null;
     isLoggedIn.value = false;

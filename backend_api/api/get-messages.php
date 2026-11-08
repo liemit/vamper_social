@@ -1,15 +1,16 @@
 <?php
 require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once __DIR__ . '/libs/ApiAuth.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
 $conversation_id = isset($_GET['conversation_id']) ? $_GET['conversation_id'] : null;
-$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+$user_id = authenticateApiUser($db);
 $partner_id = isset($_GET['partner_id']) ? $_GET['partner_id'] : null;
 
-if (empty($conversation_id) && (empty($user_id) || empty($partner_id))) {
+if (empty($conversation_id) && empty($partner_id)) {
     http_response_code(400);
     echo json_encode(["success" => false, "message" => "Conversation ID or User & Partner IDs required."]);
     exit();
@@ -45,19 +46,30 @@ try {
         }
     } catch (Exception $e) {}
 
-    // Fetch messages
+    $participantStmt = $db->prepare(
+        'SELECT COUNT(*) FROM conversations
+         WHERE id = :cid AND (user1_id = :uid OR user2_id = :uid)'
+    );
+    $participantStmt->execute([':cid' => $conversation_id, ':uid' => $user_id]);
+    if ((int)$participantStmt->fetchColumn() === 0) {
+        http_response_code(403);
+        echo json_encode(["success" => false, "message" => "You are not part of this conversation."]);
+        exit();
+    }
+
+    // Mark messages as read before returning them so the receiver sees the current state.
+    $rStmt = $db->prepare(
+        "UPDATE messages SET is_read = 1
+         WHERE conversation_id = :cid AND receiver_id = :uid AND is_read = 0"
+    );
+    $rStmt->execute([':cid' => $conversation_id, ':uid' => $user_id]);
+
     $mStmt = $db->prepare("SELECT id, conversation_id, sender_id, receiver_id, message_type, content, media_url, reply_to, reaction, is_read, created_at
                            FROM messages
                            WHERE conversation_id = :cid
                            ORDER BY created_at ASC");
     $mStmt->execute([':cid' => $conversation_id]);
     $messages = $mStmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Mark messages as read for current user
-    if ($user_id) {
-        $rStmt = $db->prepare("UPDATE messages SET is_read = 1 WHERE conversation_id = :cid AND receiver_id = :uid AND is_read = 0");
-        $rStmt->execute([':cid' => $conversation_id, ':uid' => $user_id]);
-    }
 
     http_response_code(200);
     echo json_encode([
