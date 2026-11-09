@@ -48,6 +48,14 @@ revenue totals, and disabled if the stored payment mode is `live`. Do not enable
 live payments until a server-side PayPal order/capture verification flow is
 implemented.
 
+The authenticated `get-payment-settings.php` endpoint lets the coin store read
+the admin-selected mode at runtime, independent of Flutter build type. Sandbox
+test credits are therefore available on Debug and Release builds whenever the
+admin selects Sandbox. This is a global test switch: any signed-in account can
+receive simulated coins, so do not leave it enabled for a public production
+test. Selecting Live disables coin purchases until real PayPal checkout and
+server-side verification are implemented.
+
 Party music playback is not implemented yet. The shop exposes profile frames
 and avatars only; legacy Party-frame records are hidden and cannot be purchased
 or equipped.

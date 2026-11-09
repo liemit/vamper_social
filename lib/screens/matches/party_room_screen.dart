@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:get/get.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:share_plus/share_plus.dart';
@@ -546,7 +545,8 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
 
   Future<void> _editParty() async {
     final updatedParty = await Get.to<Map<String, dynamic>>(
-      () => CreatePartyScreen(editParty: Map<String, dynamic>.from(widget.party)),
+      () =>
+          CreatePartyScreen(editParty: Map<String, dynamic>.from(widget.party)),
     );
     if (updatedParty != null && mounted) {
       widget.party.addAll(updatedParty);
@@ -600,7 +600,8 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                   data: {'party_id': widget.party['id']},
                 );
 
-                final success = response.data is Map && response.data['success'] == true;
+                final success =
+                    response.data is Map && response.data['success'] == true;
                 if (!mounted) return;
 
                 if (success) {
@@ -617,7 +618,8 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                   Get.back(result: true);
                 } else {
                   final message = response.data is Map
-                      ? (response.data['message']?.toString() ?? 'Unable to delete the party room.')
+                      ? (response.data['message']?.toString() ??
+                            'Unable to delete the party room.')
                       : 'Unable to delete the party room.';
                   throw StateError(message);
                 }
@@ -638,7 +640,10 @@ class _PartyRoomScreenState extends State<PartyRoomScreen> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('End & Delete'),
           ),

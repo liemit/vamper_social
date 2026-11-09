@@ -21,7 +21,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final success = await _authController.login(
+      await _authController.login(
         email: _adminIdController.text.trim(),
         password: _passwordController.text,
       );
@@ -58,19 +58,30 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Icon
-                    const Icon(Icons.admin_panel_settings, size: 64, color: AppColors.primary),
+                    const Icon(
+                      Icons.admin_panel_settings,
+                      size: 64,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(height: 24),
-                    
+
                     const Text(
                       'Admin Portal',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'Secure management system access',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 40),
 
@@ -79,7 +90,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                       hint: 'Enter credentials',
                       prefixIcon: Icons.badge_outlined,
                       controller: _adminIdController,
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 20),
 
@@ -89,21 +101,27 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                       prefixIcon: Icons.lock_open_rounded,
                       isPassword: true,
                       controller: _passwordController,
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 32),
 
-                    Obx(() => GradientButton(
-                      text: 'Authorize Access',
-                      onPressed: _handleLogin,
-                      isLoading: _authController.isLoading.value,
-                      width: double.infinity,
-                    )),
-                    
+                    Obx(
+                      () => GradientButton(
+                        text: 'Authorize Access',
+                        onPressed: _handleLogin,
+                        isLoading: _authController.isLoading.value,
+                        width: double.infinity,
+                      ),
+                    ),
+
                     const SizedBox(height: 24),
                     TextButton(
                       onPressed: () => Get.offAllNamed('/login'),
-                      child: const Text('Back to Member Login', style: TextStyle(color: AppColors.textLight)),
+                      child: const Text(
+                        'Back to Member Login',
+                        style: TextStyle(color: AppColors.textLight),
+                      ),
                     ),
                   ],
                 ),

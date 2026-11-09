@@ -1541,8 +1541,9 @@ if ($isAdminLoggedIn && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Môi Trường Thanh Toán</label>
                                     <select name="paypal_mode" class="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
                                         <option value="sandbox" <?= $paypalMode === 'sandbox' ? 'selected' : '' ?>>Sandbox (Thử nghiệm)</option>
-                                        <option value="live" disabled <?= $paypalMode === 'live' ? 'selected' : '' ?>>Live (chưa tích hợp xác minh server)</option>
+                                        <option value="live" <?= $paypalMode === 'live' ? 'selected' : '' ?>>Live (checkout tạm khóa đến khi tích hợp xác minh server)</option>
                                     </select>
+                                    <p class="mt-2 text-xs text-amber-700">Sandbox cho phép mọi tài khoản đăng nhập nhận xu thử nghiệm trên mọi phiên bản ứng dụng và không thu tiền thật. Chỉ bật khi đang kiểm thử; Live hiện chưa có thanh toán/xác minh thật nên sẽ khóa mua xu.</p>
                                 </div>
                                 <button type="submit" class="px-6 py-2.5 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition shadow-md">
                                     Lưu Cài Đặt Ví

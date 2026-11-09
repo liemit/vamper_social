@@ -13,7 +13,8 @@ class SoulMatchWaitingScreen extends StatefulWidget {
   State<SoulMatchWaitingScreen> createState() => _SoulMatchWaitingScreenState();
 }
 
-class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with SingleTickerProviderStateMixin {
+class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   Timer? _pingTimer;
   bool _isSearching = true;
@@ -32,32 +33,35 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
   }
 
   void _startQueuePing(String mode) {
-    _sendPing(mode, 'ping');
+    unawaited(_sendPing(mode, 'ping'));
     _pingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      _sendPing(mode, 'ping');
+      unawaited(_sendPing(mode, 'ping'));
     });
   }
 
-  void _sendPing(String mode, String action) {
+  Future<void> _sendPing(String mode, String action) async {
     final AuthController authController = Get.find<AuthController>();
     final userId = authController.currentUser.value?.id;
     if (userId == null) return;
 
-    authController.apiService.post(
-      '${ApiConstants.baseUrl}/match-queue-ping.php',
-      data: {
-        'user_id': userId,
-        'mode': mode,
-        'action': action,
-      },
-    ).catchError((e) => print('Queue ping error: $e'));
+    try {
+      await authController.apiService.post(
+        '${ApiConstants.baseUrl}/match-queue-ping.php',
+        data: {'user_id': userId, 'mode': mode, 'action': action},
+      );
+    } catch (error) {
+      debugPrint('Queue ping error: $error');
+    }
   }
 
   Future<void> _findMatch() async {
     final AuthController authController = Get.find<AuthController>();
     final userId = authController.currentUser.value?.id;
-    final DiscoveryController discoveryController = Get.put(DiscoveryController());
-    final genderPref = discoveryController.genderPreference.value; // 'male', 'female', 'both'
+    final DiscoveryController discoveryController = Get.put(
+      DiscoveryController(),
+    );
+    final genderPref =
+        discoveryController.genderPreference.value; // 'male', 'female', 'both'
 
     if (userId == null) {
       Get.back();
@@ -70,10 +74,7 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
 
       final response = await authController.apiService.get(
         '${ApiConstants.baseUrl}/soul-match-find.php',
-        params: {
-          'user_id': userId,
-          'gender_pref': genderPref,
-        },
+        params: {'user_id': userId, 'gender_pref': genderPref},
       );
 
       if (response.data['success'] == true) {
@@ -108,7 +109,7 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
   @override
   void dispose() {
     _pingTimer?.cancel();
-    _sendPing('soul', 'leave');
+    unawaited(_sendPing('soul', 'leave'));
     _controller.dispose();
     super.dispose();
   }
@@ -136,7 +137,10 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
                         height: 240,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.pink.withValues(alpha: 0.3), width: 2),
+                          border: Border.all(
+                            color: Colors.pink.withValues(alpha: 0.3),
+                            width: 2,
+                          ),
                           gradient: SweepGradient(
                             colors: [
                               Colors.pink.withValues(alpha: 0.0),
@@ -157,14 +161,22 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
                     const CircleAvatar(
                       radius: 40,
                       backgroundColor: Colors.pink,
-                      child: Icon(Icons.favorite, color: Colors.white, size: 40),
+                      child: Icon(
+                        Icons.favorite,
+                        color: Colors.white,
+                        size: 40,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 50),
                 Text(
                   _statusText,
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
@@ -180,7 +192,9 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
                       backgroundColor: Colors.pink,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     onPressed: () => Get.back(),
                     child: const Text('Back to Matches'),
@@ -188,7 +202,10 @@ class _SoulMatchWaitingScreenState extends State<SoulMatchWaitingScreen> with Si
                 else
                   TextButton(
                     onPressed: () => Get.back(),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.white70),
+                    ),
                   ),
               ],
             ),

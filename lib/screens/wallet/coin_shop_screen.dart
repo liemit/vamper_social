@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../controllers/auth_controller.dart';
+import '../../core/constants/api_constants.dart';
 import '../../widgets/vpc_coin_icon.dart';
 import 'store_screen.dart';
 
@@ -15,10 +15,62 @@ class CoinShopScreen extends StatefulWidget {
 }
 
 class _CoinShopScreenState extends State<CoinShopScreen> {
-  bool get _usesPayPalSandbox => kIsWeb || kDebugMode;
+  String? _paymentMode;
+  String? _paymentSettingsError;
+  bool _isLoadingPaymentSettings = true;
 
-  bool get _isAndroid =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  bool get _canUseSandbox =>
+      !_isLoadingPaymentSettings &&
+      _paymentSettingsError == null &&
+      _paymentMode == 'sandbox';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPaymentSettings();
+  }
+
+  Future<void> _loadPaymentSettings() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingPaymentSettings = true;
+        _paymentSettingsError = null;
+      });
+    }
+
+    try {
+      final response = await Get.find<AuthController>().apiService.get(
+        ApiConstants.getPaymentSettings,
+      );
+      if (response.data['success'] != true) {
+        throw StateError(
+          response.data['message']?.toString() ??
+              'Unable to load payment settings.',
+        );
+      }
+
+      final data = Map<String, dynamic>.from(response.data['data'] as Map);
+      final mode = data['payment_mode']?.toString();
+      if (mode != 'sandbox' && mode != 'live') {
+        throw StateError('The server returned an unsupported payment mode.');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _paymentMode = mode;
+        _isLoadingPaymentSettings = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _paymentSettingsError = error.toString().replaceFirst(
+          'Bad state: ',
+          '',
+        );
+        _isLoadingPaymentSettings = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +182,39 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_usesPayPalSandbox) ...[
+            if (_isLoadingPaymentSettings) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              ),
+            ] else if (_paymentSettingsError != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Could not load payment settings: $_paymentSettingsError',
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadPaymentSettings,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (_canUseSandbox) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
@@ -138,10 +222,8 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                   color: Colors.blue.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  _isAndroid
-                      ? 'PayPal Sandbox test mode is enabled. No real payment is verified or charged.'
-                      : 'PayPal Sandbox is enabled for testing. No real payment is verified or charged.',
+                child: const Text(
+                  'PayPal Sandbox is enabled by the admin. This test is available on all app builds; it does not verify or charge a real payment.',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -157,7 +239,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'PayPal live checkout is not configured. Coin purchases are disabled for this build.',
+                  'PayPal is set to Live by the admin, but live checkout and server-side payment verification are not implemented yet. Purchases are disabled.',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -166,28 +248,31 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
               ),
             ],
 
-            if (_usesPayPalSandbox)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: packages.length,
-                itemBuilder: (context, index) {
-                  final pkg = packages[index];
-                  final isPopular = pkg['popular'] as bool;
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.85,
+              ),
+              itemCount: packages.length,
+              itemBuilder: (context, index) {
+                final pkg = packages[index];
+                final isPopular = pkg['popular'] as bool;
 
-                  return InkWell(
-                    onTap: () => _showPayPalCheckout(
-                      context,
-                      authController,
-                      pkg['coins'] as int,
-                      pkg['price'] as double,
-                    ),
+                return Opacity(
+                  opacity: _canUseSandbox ? 1 : 0.6,
+                  child: InkWell(
+                    onTap: _canUseSandbox
+                        ? () => _showPayPalCheckout(
+                            context,
+                            authController,
+                            pkg['coins'] as int,
+                            pkg['price'] as double,
+                          )
+                        : null,
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       decoration: BoxDecoration(
@@ -285,9 +370,10 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(

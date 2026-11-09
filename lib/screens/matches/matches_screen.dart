@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
-import '../../controllers/auth_controller.dart';
 import 'soul_match_waiting_screen.dart';
 import 'voice_match_waiting_screen.dart';
 import '../home/swipe_cards_screen.dart';
@@ -11,8 +10,6 @@ class MatchesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AuthController authController = Get.find<AuthController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -20,7 +17,10 @@ class MatchesScreen extends StatelessWidget {
         elevation: 0,
         title: const Text(
           'Find Your Match',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: false,
       ),
@@ -31,10 +31,14 @@ class MatchesScreen extends StatelessWidget {
           children: [
             const Text(
               'Random Interactions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            
+
             // Match Cards Grid
             Row(
               children: [
@@ -69,11 +73,15 @@ class MatchesScreen extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
             const Text(
               'Daily Discovery',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -105,12 +113,19 @@ class MatchesScreen extends StatelessWidget {
                         children: const [
                           Text(
                             'Start Swiping',
-                            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           SizedBox(height: 6),
                           Text(
                             'Find people near you right now and discover your soulmate.',
-                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -148,7 +163,11 @@ class MatchesScreen extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               title,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: iconColor),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: iconColor,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
