@@ -2,6 +2,7 @@
 require_once '../config/cors.php';
 require_once '../config/database.php';
 require_once __DIR__ . '/libs/ApiAuth.php';
+require_once __DIR__ . '/libs/PayPalGateway.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -19,12 +20,19 @@ try {
     if (!in_array($paymentMode, ['sandbox', 'live'], true)) {
         throw new UnexpectedValueException('Unsupported PayPal payment mode in settings.');
     }
+    $merchantStmt = $db->prepare("SELECT `value` FROM settings WHERE `key` = 'paypal_email' LIMIT 1");
+    $merchantStmt->execute();
+    $merchantEmail = $merchantStmt->fetchColumn();
+    $checkoutEnabled = is_string($merchantEmail)
+        && filter_var($merchantEmail, FILTER_VALIDATE_EMAIL) !== false
+        && PayPalGateway::isConfigured($paymentMode);
 
     echo json_encode([
         'success' => true,
         'data' => [
             'payment_mode' => $paymentMode,
-            'live_checkout_enabled' => false,
+            'checkout_enabled' => $checkoutEnabled,
+            'live_checkout_enabled' => $checkoutEnabled && $paymentMode === 'live',
         ],
     ]);
 } catch (PDOException $error) {

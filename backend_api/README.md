@@ -29,8 +29,8 @@ not in source control.
 On the first admin login, additive migrations create `admin_accounts`,
 `admin_audit_log`, and `vpc_ledger`, add report-review metadata and the
 `shop_items.is_active` flag, and preserve existing accounts and purchases. The
-sandbox checkout endpoint creates its own payment idempotency table on first
-use.
+PayPal checkout endpoints create their own order and idempotency tables on
+first use.
 Existing `users.role = 'admin'` accounts are initialized as `super_admin` so
 they retain access. The database account needs `CREATE` and `ALTER` privileges
 for this one-time initialization. No database reset or full SQL import is
@@ -42,19 +42,38 @@ has been removed. VPC adjustments, shop purchases, gifts, and sandbox top-ups
 are recorded in the additive VPC ledger. Older coin activity is intentionally
 not backfilled because trustworthy before/after balances are unavailable.
 
-PayPal checkout currently remains a sandbox simulation, not real payment
-verification. Simulated top-ups are labeled `sandbox_mock`, excluded from
-revenue totals, and disabled if the stored payment mode is `live`. Do not enable
-live payments until a server-side PayPal order/capture verification flow is
-implemented.
+PayPal checkout uses server-created Orders v2 and server-side capture
+verification. The package price, coin count, currency, and merchant are checked
+on the server before coins are credited; processing is idempotent. Sandbox
+payments are recorded as `sandbox_mock` and excluded from revenue totals. Live
+payments are recorded as `completed`.
 
-The authenticated `get-payment-settings.php` endpoint lets the coin store read
-the admin-selected mode at runtime, independent of Flutter build type. Sandbox
-test credits are therefore available on Debug and Release builds whenever the
-admin selects Sandbox. This is a global test switch: any signed-in account can
-receive simulated coins, so do not leave it enabled for a public production
-test. Selecting Live disables coin purchases until real PayPal checkout and
-server-side verification are implemented.
+Configure these values in the PHP-FPM/Apache environment on the API server.
+Never put PayPal client secrets in Flutter, SQL, or source control:
+
+```text
+PAYPAL_SANDBOX_CLIENT_ID=your-sandbox-client-id
+PAYPAL_SANDBOX_CLIENT_SECRET=your-sandbox-client-secret
+PAYPAL_LIVE_CLIENT_ID=your-live-client-id
+PAYPAL_LIVE_CLIENT_SECRET=your-live-client-secret
+PAYPAL_RETURN_URL=https://api.example.com/api/paypal-return.php
+```
+
+Enable the PHP cURL extension and allow outbound HTTPS to PayPal. Set the
+environment variables in the PHP-FPM pool if it clears inherited variables,
+then restart PHP-FPM or Apache. In the Admin wallet settings, set the merchant
+email to the email address of the matching PayPal account and choose Sandbox or
+Live. Checkout is disabled unless that mode's API credentials and a valid
+merchant email are configured. Sandbox uses PayPal Sandbox buyer and merchant
+accounts; Live charges real money. The authenticated
+`get-payment-settings.php` endpoint supplies the mode to all app builds.
+
+The app opens the PayPal approval page, then the user returns to the app and
+selects “Verify payment”. The server captures or verifies the PayPal order and
+credits coins only after checking the completed capture. Deploy the backend
+before updating the app. Test the complete flow with Sandbox accounts before
+enabling Live. Check Google Play and Apple App Store payment policies for
+digital goods before distributing the app through those stores.
 
 Party music playback is not implemented yet. The shop exposes profile frames
 and avatars only; legacy Party-frame records are hidden and cannot be purchased

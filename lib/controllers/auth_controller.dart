@@ -668,44 +668,59 @@ class AuthController extends GetxController {
     }
   }
 
-  // Sandbox-only test credit; this does not verify a real PayPal payment.
-  Future<bool> confirmSandboxCredit(
-    int coins,
-    double price,
-    String paymentToken,
-  ) async {
+  Future<Map<String, dynamic>> createPayPalOrder(int coins) async {
+    final response = await apiService.post(
+      ApiConstants.createPayPalOrder,
+      data: {'coins': coins},
+    );
+    if (response.data['success'] != true) {
+      throw StateError(
+        response.data['message']?.toString() ??
+            'Unable to start PayPal checkout.',
+      );
+    }
+    return Map<String, dynamic>.from(response.data['data'] as Map);
+  }
+
+  Future<bool> capturePayPalOrder(String checkoutId) async {
     final user = currentUser.value;
     if (user == null) return false;
 
     try {
       isLoading.value = true;
       final response = await apiService.post(
-        '${ApiConstants.baseUrl}/verify-paypal-payment.php',
-        data: {
-          'user_id': user.id,
-          'coins': coins,
-          'amount_usd': price,
-          'payment_token': paymentToken,
-        },
+        ApiConstants.capturePayPalOrder,
+        data: {'checkout_id': checkoutId},
       );
 
       if (response.data['success'] == true) {
-        currentUser.value = UserModel.fromJson(response.data['data']['user']);
+        final balance = int.tryParse(
+          response.data['data']['balance']?.toString() ?? '',
+        );
+        if (balance == null) {
+          throw StateError(
+            'PayPal verified the payment but returned no balance.',
+          );
+        }
+        await updateCachedUser(user.copyWith(coins: balance));
         Get.snackbar(
-          'Sandbox Test Credit Added',
-          response.data['message'] ?? '$coins test coins were added.',
+          'Payment complete',
+          response.data['message'] ?? 'Your coins have been added.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.success,
           colorText: Colors.white,
         );
         return true;
       }
-      return false;
+      throw StateError(
+        response.data['message']?.toString() ??
+            'PayPal has not confirmed this payment.',
+      );
     } catch (e) {
-      print('Error applying sandbox test credit: $e');
+      debugPrint('PayPal order verification failed: $e');
       Get.snackbar(
-        'Sandbox Test Credit Failed',
-        'Could not add the test coins.',
+        'Payment not verified',
+        e.toString().replaceFirst('Bad state: ', ''),
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.error,
         colorText: Colors.white,

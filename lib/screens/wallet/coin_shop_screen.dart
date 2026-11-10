@@ -17,12 +17,15 @@ class CoinShopScreen extends StatefulWidget {
 class _CoinShopScreenState extends State<CoinShopScreen> {
   String? _paymentMode;
   String? _paymentSettingsError;
+  bool _checkoutEnabled = false;
   bool _isLoadingPaymentSettings = true;
+  bool _isCreatingOrder = false;
 
-  bool get _canUseSandbox =>
+  bool get _canPurchase =>
       !_isLoadingPaymentSettings &&
       _paymentSettingsError == null &&
-      _paymentMode == 'sandbox';
+      _checkoutEnabled &&
+      (_paymentMode == 'sandbox' || _paymentMode == 'live');
 
   @override
   void initState() {
@@ -54,10 +57,12 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
       if (mode != 'sandbox' && mode != 'live') {
         throw StateError('The server returned an unsupported payment mode.');
       }
+      final checkoutEnabled = data['checkout_enabled'] == true;
 
       if (!mounted) return;
       setState(() {
         _paymentMode = mode;
+        _checkoutEnabled = checkoutEnabled;
         _isLoadingPaymentSettings = false;
       });
     } catch (error) {
@@ -214,7 +219,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                   ],
                 ),
               ),
-            ] else if (_canUseSandbox) ...[
+            ] else if (_canPurchase && _paymentMode == 'sandbox') ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
@@ -223,7 +228,23 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'PayPal Sandbox is enabled by the admin. This test is available on all app builds; it does not verify or charge a real payment.',
+                  'PayPal Sandbox is enabled. Complete checkout with a PayPal Sandbox buyer account; no real money is charged.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ] else if (_canPurchase && _paymentMode == 'live') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'PayPal Live is enabled. Real payments will be captured and verified by the server before coins are added.',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -239,7 +260,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'PayPal is set to Live by the admin, but live checkout and server-side payment verification are not implemented yet. Purchases are disabled.',
+                  'PayPal checkout is not configured for the selected mode. Ask the administrator to configure PayPal API credentials, merchant email, and the HTTPS return URL.',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -263,14 +284,12 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                 final isPopular = pkg['popular'] as bool;
 
                 return Opacity(
-                  opacity: _canUseSandbox ? 1 : 0.6,
+                  opacity: _canPurchase ? 1 : 0.6,
                   child: InkWell(
-                    onTap: _canUseSandbox
-                        ? () => _showPayPalCheckout(
-                            context,
+                    onTap: _canPurchase && !_isCreatingOrder
+                        ? () => _startPayPalCheckout(
                             authController,
                             pkg['coins'] as int,
-                            pkg['price'] as double,
                           )
                         : null,
                     borderRadius: BorderRadius.circular(20),
@@ -397,190 +416,188 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     );
   }
 
-  void _showPayPalCheckout(
-    BuildContext context,
+  Future<void> _startPayPalCheckout(
     AuthController authController,
     int coins,
-    double price,
-  ) {
+  ) async {
+    if (_isCreatingOrder) return;
+    setState(() => _isCreatingOrder = true);
+
+    try {
+      final order = await authController.createPayPalOrder(coins);
+      final checkoutId = order['checkout_id']?.toString();
+      final approvalUrl = Uri.tryParse(order['approval_url']?.toString() ?? '');
+      final amount = order['amount_usd']?.toString();
+      final mode = order['mode']?.toString();
+      if (checkoutId == null ||
+          approvalUrl == null ||
+          approvalUrl.scheme != 'https' ||
+          !(approvalUrl.host == 'paypal.com' ||
+              approvalUrl.host.endsWith('.paypal.com')) ||
+          amount == null ||
+          mode == null ||
+          (mode != 'sandbox' && mode != 'live')) {
+        throw StateError('PayPal returned an invalid checkout response.');
+      }
+
+      if (!mounted) return;
+      _showPayPalApprovalDialog(
+        authController,
+        checkoutId: checkoutId,
+        approvalUrl: approvalUrl,
+        coins: coins,
+        amount: amount,
+        mode: mode,
+      );
+    } catch (error) {
+      if (mounted) {
+        Get.snackbar(
+          'Unable to start checkout',
+          error.toString().replaceFirst('Bad state: ', ''),
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCreatingOrder = false);
+    }
+  }
+
+  void _showPayPalApprovalDialog(
+    AuthController authController, {
+    required String checkoutId,
+    required Uri approvalUrl,
+    required int coins,
+    required String amount,
+    required String mode,
+  }) {
+    var isOpeningPayPal = false;
+    var isCapturing = false;
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.payment, color: Color(0xFF003087)),
-            const SizedBox(width: 8),
-            const Text('PayPal Sandbox Checkout'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'You are purchasing:',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '$coins Vamper Coins',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            title: Row(
               children: [
-                const Text('Total Amount:', style: TextStyle(fontSize: 16)),
+                const Icon(Icons.payment, color: Color(0xFF003087)),
+                const SizedBox(width: 8),
+                Text(mode == 'sandbox' ? 'PayPal Sandbox' : 'PayPal Live'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '\$$price USD',
+                  '$coins Vamper Coins',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Total: \$$amount USD',
+                  style: const TextStyle(
+                    fontSize: 16,
                     color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  mode == 'sandbox'
+                      ? 'Sign in with a PayPal Sandbox buyer account. No real money is charged.'
+                      : 'You will be redirected to PayPal to authorize a real payment. The server verifies the captured amount and merchant before adding coins.',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'After approving in PayPal, return to Vamper and tap “Verify payment”.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+            actions: [
+              TextButton(
+                onPressed: isCapturing ? null : () => Get.back(),
+                child: const Text('Close'),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This is a sandbox demo only. It does not create or verify a PayPal order; confirming adds test VPC to your account.',
-                      style: TextStyle(fontSize: 12, color: Colors.blueAccent),
-                    ),
-                  ),
-                ],
+              OutlinedButton(
+                onPressed: isOpeningPayPal || isCapturing
+                    ? null
+                    : () async {
+                        setDialogState(() => isOpeningPayPal = true);
+                        try {
+                          final opened = await launchUrl(
+                            approvalUrl,
+                            mode: LaunchMode.externalApplication,
+                          );
+                          if (!opened) {
+                            throw StateError(
+                              'Could not open PayPal. Please try again.',
+                            );
+                          }
+                        } catch (error) {
+                          Get.snackbar(
+                            'PayPal unavailable',
+                            error.toString().replaceFirst('Bad state: ', ''),
+                            snackPosition: SnackPosition.BOTTOM,
+                          );
+                        } finally {
+                          setDialogState(() => isOpeningPayPal = false);
+                        }
+                      },
+                child: isOpeningPayPal
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Open PayPal'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF003087), // PayPal Blue
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              ElevatedButton(
+                onPressed: isCapturing || isOpeningPayPal
+                    ? null
+                    : () async {
+                        setDialogState(() => isCapturing = true);
+                        final success = await authController.capturePayPalOrder(
+                          checkoutId,
+                        );
+                        if (success) {
+                          Get.back();
+                        } else {
+                          setDialogState(() => isCapturing = false);
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                ),
+                child: isCapturing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Verify payment'),
               ),
-            ),
-            onPressed: () async {
-              Get.back();
-              final paymentToken =
-                  'pp_sandbox_${DateTime.now().millisecondsSinceEpoch}';
-
-              // 1. Open PayPal Sandbox Login URL
-              final Uri sandboxUrl = Uri.parse(
-                'https://www.sandbox.paypal.com/signin',
-              );
-              if (await canLaunchUrl(sandboxUrl)) {
-                await launchUrl(
-                  sandboxUrl,
-                  mode: LaunchMode.externalApplication,
-                );
-              }
-
-              // 2. Show 2nd step confirmation dialog with secure token verification
-              _showPaymentConfirmationDialog(
-                context,
-                authController,
-                coins,
-                price,
-                paymentToken,
-              );
-            },
-            child: const Text('Continue to PayPal Sandbox'),
-          ),
-        ],
+            ],
+          );
+        },
       ),
-    );
-  }
-
-  void _showPaymentConfirmationDialog(
-    BuildContext context,
-    AuthController authController,
-    int coins,
-    double price,
-    String paymentToken,
-  ) {
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.verified, color: Colors.green, size: 28),
-            SizedBox(width: 8),
-            Text('Confirm Payment'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This is a sandbox test for \$$price USD. No real PayPal payment is checked or charged.',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Confirming will add $coins test coins to your account.',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Not Yet',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () async {
-              Get.back();
-              await authController.confirmSandboxCredit(
-                coins,
-                price,
-                paymentToken,
-              );
-            },
-            child: const Text('Confirm Test Credit'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
     );
   }
 }
