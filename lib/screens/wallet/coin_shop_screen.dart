@@ -441,6 +441,28 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
       }
 
       if (!mounted) return;
+      try {
+        final opened = await launchUrl(
+          approvalUrl,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened && mounted) {
+          Get.snackbar(
+            'PayPal did not open',
+            'Tap “Open PayPal” to continue checkout.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          Get.snackbar(
+            'PayPal did not open',
+            error.toString().replaceFirst('Bad state: ', ''),
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      }
+      if (!mounted) return;
       _showPayPalApprovalDialog(
         authController,
         checkoutId: checkoutId,
@@ -562,7 +584,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Open PayPal'),
+                    : const Text('Open PayPal again'),
               ),
               ElevatedButton(
                 onPressed: isCapturing || isOpeningPayPal

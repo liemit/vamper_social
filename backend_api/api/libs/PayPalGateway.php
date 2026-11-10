@@ -113,17 +113,34 @@ final class PayPalGateway
         ]);
         $response = curl_exec($curl);
         $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $curlErrorNumber = curl_errno($curl);
         $curlError = curl_error($curl);
         curl_close($curl);
 
-        if ($response === false || $status < 200 || $status >= 300) {
-            error_log('PayPal OAuth request failed with HTTP ' . $status . ($curlError !== '' ? ': ' . $curlError : ''));
-            throw new RuntimeException('Unable to connect to PayPal. Please try again later.');
+        if ($response === false) {
+            error_log(
+                'PayPal OAuth transport failed (cURL ' . $curlErrorNumber . ')'
+                . ($curlError !== '' ? ': ' . $curlError : '')
+            );
+            throw new RuntimeException(
+                'The API server could not connect to PayPal (cURL error '
+                . $curlErrorNumber . '). Check its network and SSL configuration.'
+            );
+        }
+        if ($status < 200 || $status >= 300) {
+            error_log('PayPal OAuth request failed with HTTP ' . $status);
+            if ($status === 401) {
+                throw new RuntimeException(
+                    'PayPal rejected the API credentials (HTTP 401). Verify the Client ID and Secret for the selected mode.'
+                );
+            }
+            throw new RuntimeException('PayPal OAuth failed with HTTP ' . $status . '.');
         }
 
         $decoded = json_decode($response, true);
         $token = is_array($decoded) ? ($decoded['access_token'] ?? null) : null;
         if (!is_string($token) || $token === '') {
+            error_log('PayPal OAuth response did not contain an access token.');
             throw new RuntimeException('PayPal did not provide an API access token.');
         }
         return $token;
@@ -164,21 +181,33 @@ final class PayPalGateway
 
         $response = curl_exec($curl);
         $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $curlErrorNumber = curl_errno($curl);
         $curlError = curl_error($curl);
         curl_close($curl);
 
         if ($response === false) {
-            error_log('PayPal API request failed: ' . $curlError);
-            throw new RuntimeException('Unable to connect to PayPal. Please try again.');
+            error_log(
+                'PayPal API transport failed (cURL ' . $curlErrorNumber . ')'
+                . ($curlError !== '' ? ': ' . $curlError : '')
+            );
+            throw new RuntimeException(
+                'The API server could not connect to PayPal (cURL error '
+                . $curlErrorNumber . '). Check its network and SSL configuration.'
+            );
         }
         $decoded = json_decode($response, true);
         if ($status < 200 || $status >= 300 || !is_array($decoded)) {
             $debugId = is_array($decoded) ? ($decoded['debug_id'] ?? 'unavailable') : 'unavailable';
             error_log('PayPal API returned HTTP ' . $status . ', debug id: ' . $debugId);
+            if ($status === 401) {
+                throw new RuntimeException(
+                    'PayPal rejected the API credentials (HTTP 401). Verify the Client ID and Secret for the selected mode.'
+                );
+            }
             if ($status === 422) {
                 throw new DomainException('PayPal has not approved this payment yet, or it was already processed.');
             }
-            throw new RuntimeException('PayPal could not complete the request. Please try again.');
+            throw new RuntimeException('PayPal API request failed with HTTP ' . $status . '.');
         }
         return $decoded;
     }
