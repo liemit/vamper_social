@@ -85,11 +85,10 @@ try {
             $checkout['merchant_email'],
             false
         );
-        $gateway->captureOrder(
+        $paypalOrder = $gateway->captureOrder(
             $checkout['paypal_order_id'],
             substr(hash('sha256', 'capture:' . $checkoutId), 0, 36)
         );
-        $paypalOrder = $gateway->getOrder($checkout['paypal_order_id']);
     }
 
     $capture = verifyPayPalOrder(

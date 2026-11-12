@@ -198,13 +198,29 @@ final class PayPalGateway
         $decoded = json_decode($response, true);
         if ($status < 200 || $status >= 300 || !is_array($decoded)) {
             $debugId = is_array($decoded) ? ($decoded['debug_id'] ?? 'unavailable') : 'unavailable';
-            error_log('PayPal API returned HTTP ' . $status . ', debug id: ' . $debugId);
+            $details = is_array($decoded) ? ($decoded['details'] ?? []) : [];
+            $issue = is_array($details) && isset($details[0]['issue'])
+                && is_string($details[0]['issue'])
+                ? $details[0]['issue']
+                : 'unavailable';
+            error_log(
+                'PayPal API returned HTTP ' . $status
+                . ', issue: ' . $issue
+                . ', debug id: ' . $debugId
+            );
             if ($status === 401) {
                 throw new RuntimeException(
                     'PayPal rejected the API credentials (HTTP 401). Verify the Client ID and Secret for the selected mode.'
                 );
             }
             if ($status === 422) {
+                if ($method === 'POST' && $path === '/v2/checkout/orders') {
+                    throw new RuntimeException(
+                        'PayPal rejected order creation (HTTP 422, issue: '
+                        . $issue
+                        . '). No payment was captured; check the selected mode credentials and merchant account settings.'
+                    );
+                }
                 throw new DomainException('PayPal has not approved this payment yet, or it was already processed.');
             }
             throw new RuntimeException('PayPal API request failed with HTTP ' . $status . '.');
