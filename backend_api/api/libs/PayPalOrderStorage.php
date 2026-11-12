@@ -106,60 +106,110 @@ function verifyPayPalOrder(
 
     $purchaseUnits = $paypalOrder['purchase_units'] ?? null;
     if (!is_array($purchaseUnits) || count($purchaseUnits) !== 1) {
-        throw new DomainException('PayPal order does not match the expected purchase.');
+        error_log('PayPal order verification failed: purchase unit count mismatch.');
+        throw new DomainException('PayPal order has an unexpected number of purchase units.');
     }
     $purchase = $purchaseUnits[0];
-    $payeeEmail = $purchase['payee']['email_address'] ?? null;
-    $paypalAmount = $purchase['amount'] ?? [];
-    if (
-        ($paypalOrder['id'] ?? null) !== $paypalOrderId
-        || ($purchase['reference_id'] ?? null) !== $checkoutId
-        || ($purchase['custom_id'] ?? null) !== (string)$userId
-        || ($purchase['invoice_id'] ?? null) !== $checkoutId
-        || !is_string($payeeEmail)
-        || strcasecmp($payeeEmail, $merchantEmail) !== 0
-        || ($paypalAmount['currency_code'] ?? null) !== 'USD'
-        || !paypalAmountMatches($paypalAmount['value'] ?? null, $amount)
-    ) {
-        throw new DomainException('PayPal order recipient, currency, amount, or account does not match.');
+    if (!is_array($purchase)) {
+        error_log('PayPal order verification failed: purchase unit is malformed.');
+        throw new DomainException('PayPal returned an invalid purchase unit. No coins were credited.');
+    }
+    $payee = $purchase['payee'] ?? null;
+    $payeeEmail = is_array($payee) ? ($payee['email_address'] ?? null) : null;
+    $paypalAmount = $purchase['amount'] ?? null;
+    if (!is_array($paypalAmount)) {
+        $paypalAmount = [];
+    }
+    $metadataChecks = [
+        'order_id' => ($paypalOrder['id'] ?? null) === $paypalOrderId,
+        'checkout_reference' => ($purchase['reference_id'] ?? null) === $checkoutId,
+        'buyer_account' => ($purchase['custom_id'] ?? null) === (string)$userId,
+        'invoice_reference' => ($purchase['invoice_id'] ?? null) === $checkoutId,
+        'merchant_recipient' => is_string($payeeEmail)
+            && strcasecmp($payeeEmail, $merchantEmail) === 0,
+        'currency' => ($paypalAmount['currency_code'] ?? null) === 'USD',
+        'package_amount' => paypalAmountMatches($paypalAmount['value'] ?? null, $amount),
+    ];
+    foreach ($metadataChecks as $field => $matches) {
+        if (!$matches) {
+            error_log('PayPal order verification failed: ' . $field . ' mismatch.');
+            throw new DomainException(
+                'PayPal order verification failed: ' . $field . ' does not match. No coins were credited.'
+            );
+        }
     }
 
     if (!$requireCompleted) {
         return [];
     }
 
+    return verifyPayPalCapture($paypalOrder, $paypalOrderId, $amount);
+}
+
+function verifyPayPalCapture(array $paypalOrder, string $paypalOrderId, string $amount): array
+{
+    if (($paypalOrder['id'] ?? null) !== $paypalOrderId) {
+        error_log('PayPal capture verification failed: order ID mismatch.');
+        throw new DomainException('PayPal capture belongs to a different order. No coins were credited.');
+    }
+    if (($paypalOrder['status'] ?? null) !== 'COMPLETED') {
+        $status = is_string($paypalOrder['status'] ?? null)
+            ? $paypalOrder['status']
+            : 'missing';
+        error_log('PayPal capture verification failed: order status ' . $status . '.');
+        throw new DomainException(
+            'PayPal capture is not completed (status: ' . $status . '). No coins were credited.'
+        );
+    }
+
+    $purchaseUnits = $paypalOrder['purchase_units'] ?? null;
+    if (!is_array($purchaseUnits) || count($purchaseUnits) !== 1) {
+        error_log('PayPal capture verification failed: purchase unit count mismatch.');
+        throw new DomainException('PayPal capture has an unexpected purchase unit count. No coins were credited.');
+    }
+
+    $purchase = $purchaseUnits[0];
+    if (!is_array($purchase)) {
+        error_log('PayPal capture verification failed: purchase unit is malformed.');
+        throw new DomainException('PayPal returned an invalid purchase unit. No coins were credited.');
+    }
     $captures = $purchase['payments']['captures'] ?? null;
     if (!is_array($captures) || count($captures) !== 1) {
-        error_log('PayPal order verification failed: expected exactly one capture.');
+        error_log('PayPal capture verification failed: expected exactly one capture.');
         throw new DomainException(
             'PayPal did not return exactly one capture. No coins were credited; contact support if your Sandbox balance was charged.'
         );
     }
     $capture = $captures[0];
-    $captureAmount = $capture['amount'] ?? [];
+    if (!is_array($capture)) {
+        error_log('PayPal capture verification failed: capture is malformed.');
+        throw new DomainException('PayPal returned an invalid capture. No coins were credited.');
+    }
+    $captureAmount = $capture['amount'] ?? null;
+    if (!is_array($captureAmount)) {
+        $captureAmount = [];
+    }
     $captureStatus = $capture['status'] ?? 'missing';
     if ($captureStatus !== 'COMPLETED') {
-        error_log('PayPal order verification failed: capture status ' . $captureStatus . '.');
+        error_log('PayPal capture verification failed: capture status ' . $captureStatus . '.');
         throw new DomainException(
             'PayPal capture status is ' . $captureStatus . '; coins were not credited. Check Sandbox Activity and retry verification if the payment later completes.'
         );
     }
     if (!is_string($capture['id'] ?? null) || $capture['id'] === '') {
-        error_log('PayPal order verification failed: capture ID is missing.');
+        error_log('PayPal capture verification failed: capture ID is missing.');
         throw new DomainException(
             'PayPal did not return a capture ID. No coins were credited; contact support before retrying payment.'
         );
     }
     if (($captureAmount['currency_code'] ?? null) !== 'USD') {
-        error_log('PayPal order verification failed: capture currency did not match USD.');
+        error_log('PayPal capture verification failed: capture currency did not match USD.');
         throw new DomainException(
             'PayPal capture currency did not match the order. No coins were credited; contact support before retrying payment.'
         );
     }
     if (!paypalAmountMatches($captureAmount['value'] ?? null, $amount)) {
-        error_log(
-            'PayPal order verification failed: capture amount did not match the expected package amount.'
-        );
+        error_log('PayPal capture verification failed: capture amount did not match.');
         throw new DomainException(
             'PayPal capture amount did not match the package. No coins were credited; contact support before retrying payment.'
         );

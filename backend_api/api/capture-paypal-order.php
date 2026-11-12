@@ -35,6 +35,9 @@ try {
         $balanceQuery = $db->prepare('SELECT coins FROM users WHERE id = :id AND is_active = 1');
         $balanceQuery->execute([':id' => $userId]);
         $balance = $balanceQuery->fetchColumn();
+        if ($balance === false) {
+            throw new DomainException('User account is unavailable.');
+        }
         echo json_encode([
             'success' => true,
             'message' => 'This PayPal order was already processed.',
@@ -45,20 +48,6 @@ try {
     if ($checkout['status'] !== 'pending' || empty($checkout['paypal_order_id'])) {
         http_response_code(409);
         echo json_encode(['success' => false, 'message' => 'This PayPal checkout is not ready to capture.']);
-        exit;
-    }
-
-    $db->exec("CREATE TABLE IF NOT EXISTS settings (
-        `key` VARCHAR(255) PRIMARY KEY,
-        `value` TEXT NOT NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-    [$currentMode] = paypalCurrentSettings($db);
-    if ($currentMode !== $checkout['mode']) {
-        http_response_code(409);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Payment mode changed during checkout. Start a new order in the current mode.',
-        ]);
         exit;
     }
 
@@ -85,21 +74,26 @@ try {
             $checkout['merchant_email'],
             false
         );
-        $paypalOrder = $gateway->captureOrder(
+        $captureResponse = $gateway->captureOrder(
             $checkout['paypal_order_id'],
             substr(hash('sha256', 'capture:' . $checkoutId), 0, 36)
         );
+        $capture = verifyPayPalCapture(
+            $captureResponse,
+            $checkout['paypal_order_id'],
+            $expectedAmount
+        );
+    } else {
+        $capture = verifyPayPalOrder(
+            $paypalOrder,
+            $checkout['paypal_order_id'],
+            $checkoutId,
+            $userId,
+            $expectedAmount,
+            $checkout['merchant_email'],
+            true
+        );
     }
-
-    $capture = verifyPayPalOrder(
-        $paypalOrder,
-        $checkout['paypal_order_id'],
-        $checkoutId,
-        $userId,
-        $expectedAmount,
-        $checkout['merchant_email'],
-        true
-    );
 
     $db->beginTransaction();
     $lockedQuery = $db->prepare(
@@ -114,6 +108,9 @@ try {
         $balanceQuery = $db->prepare('SELECT coins FROM users WHERE id = :id AND is_active = 1');
         $balanceQuery->execute([':id' => $userId]);
         $balance = $balanceQuery->fetchColumn();
+        if ($balance === false) {
+            throw new DomainException('User account is unavailable.');
+        }
         $db->commit();
         echo json_encode([
             'success' => true,
